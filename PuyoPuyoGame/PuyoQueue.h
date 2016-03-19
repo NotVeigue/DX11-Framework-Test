@@ -2,58 +2,40 @@
 #include <queue>
 #include "Puyo.h"
 
+// Represents the falling pair of puyos the player manipulates. 
 class PuyoUnit
 {
 private:
 	DirectX::XMFLOAT2 m_orientation;
+
+	// This may seem useless, but it makes querying positions much faster than using the puyos's transforms
 	DirectX::XMFLOAT2 m_positions[2];
 
-	void UpdateRotatingPuyo()
-	{
-		m_positions[1].x = m_positions[0].x + m_orientation.x;
-		m_positions[1].y = m_positions[0].y + m_orientation.y;
-	}
+	// Updates the hanging puyo -- the puyo that does not serve as the pivot -- after the unit has translated or rotated.
+	void UpdateHangingPuyo();
 
-	void SetTransforms()
-	{
-		puyos[0]->transform.SetPosition(DirectX::XMVectorSet(m_positions[0].x, m_positions[0].y, 0.0f, 0.0f));
-		puyos[1]->transform.SetPosition(DirectX::XMVectorSet(m_positions[1].x, m_positions[1].y, 0.0f, 0.0f));
-	}
+	void SetTransforms();
 
 public:
-	PuyoUnit()
-		: m_orientation(0.0f, 1.0f)
-	{}
-	~PuyoUnit() {}
+	PuyoUnit();
+	~PuyoUnit();
 
 	Puyo* puyos[2];
 
-	void SetPosition(float x, float y)
-	{
-		m_positions[0].x = x; m_positions[0].y = y;
-		UpdateRotatingPuyo();
-		SetTransforms();
-	}
+	const DirectX::XMFLOAT2& GetPosition(int index) const;
+	const DirectX::XMFLOAT2& GetOrientation() const;
+
+	void SetParent(Transform* parent);
+
+	void SetPosition(float x, float y);
 	
-	void Translate(float x, float y)
-	{
-		m_positions[0].x += x; m_positions[0].y += y;
-		UpdateRotatingPuyo();
-		SetTransforms();
-	}
+	void Translate(float x, float y);
 
-	void Rotate(bool counterClockwise)
-	{
-		float x = m_orientation.x;
-		float y = m_orientation.y;
-		m_orientation.x = counterClockwise ? -y :  y;
-		m_orientation.y = counterClockwise ?  x : -x;
-
-		UpdateRotatingPuyo();
-		SetTransforms();
-	}
+	void Rotate(bool counterClockwise);
 };
 
+
+// Represents the queue of puyos hanging to the side of a puyo grid. Handles dispensing 
 class PuyoQueue
 {
 private:

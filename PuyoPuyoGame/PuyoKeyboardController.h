@@ -1,7 +1,8 @@
 #pragma once
 #include "InputManager.h"
+#include "PuyoController.h"
 
-class PuyoKeyboardController
+class PuyoKeyboardController : public PuyoController
 {
 private:
 	KEY m_moveLeft;
@@ -13,9 +14,9 @@ public:
 	PuyoKeyboardController(KEY left, KEY right, KEY flip, KEY fall);
 	~PuyoKeyboardController();
 
-	bool MoveLeft() const;
-	bool MoveRight() const;
-	bool Flip() const;
-	bool Fall() const;
+	bool MoveLeft() const final;
+	bool MoveRight() const final;
+	bool Flip() const final;
+	bool Fall() const final;
 };
 

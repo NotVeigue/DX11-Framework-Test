@@ -1,10 +1,6 @@
 #pragma once
 #include "Transform.h"
 
-// TODO: Create some sort of static class that holds globals like this!
-#define PUYO_SIZE 20
-#define USED_PUYO_COLORS 4
-
 enum PUYO_COLOR
 {
 	RED,

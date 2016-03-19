@@ -161,12 +161,14 @@
   <ItemGroup>
     <ClInclude Include="ObjectPool.h" />
     <ClInclude Include="Puyo.h" />
+    <ClInclude Include="PuyoController.h" />
     <ClInclude Include="PuyoGame.h" />
     <ClInclude Include="PuyoGrid.h" />
     <ClInclude Include="PuyoInstance.h" />
     <ClInclude Include="PuyoKeyboardController.h" />
     <ClInclude Include="PuyoPuyoGamePCH.h" />
     <ClInclude Include="PuyoQueue.h" />
+    <ClInclude Include="PuyoValues.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Data\SimpleVertexShader.hlsl">

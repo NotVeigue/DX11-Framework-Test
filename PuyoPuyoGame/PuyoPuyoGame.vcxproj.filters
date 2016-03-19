@@ -68,6 +68,12 @@
     <ClInclude Include="PuyoQueue.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="PuyoValues.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PuyoController.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Data\SimpleVertexShader.hlsl">

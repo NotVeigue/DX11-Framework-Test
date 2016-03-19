@@ -24,7 +24,6 @@ bool Update(double dt)
 	if (InputManager::GetSingleton().IsKeyDown(KEY::Q))
 		return false;
 
-	printf("Running! \r");
 	g_puyoGame->Update(dt);
 
 	return true;

@@ -19,6 +19,7 @@ PuyoGrid::~PuyoGrid()
 
 void PuyoGrid::AddPuyo(Puyo* puyo, int x, int y)
 {
+	printf("Puyo was at position: %d, %d \n", x, y);
 	assert(x < kGridWidth);
 	assert(y < kGridHeight);
 	assert(!m_grid[x][y]);
@@ -38,12 +39,20 @@ Puyo* PuyoGrid::RemovePuyo(int x, int y)
 	return puyo;
 }
 
-Puyo* PuyoGrid::GetPuyoAt(int x, int y)
+Puyo* PuyoGrid::GetPuyoAt(int x, int y) const
 {
-	assert(x < kGridWidth);
-	assert(y < kGridHeight);
+	if (x < 0 || x > kGridWidth) return nullptr;
+	if (y < 0 || y > kGridHeight) return nullptr;
 
 	return m_grid[x][y];
+}
+
+bool PuyoGrid::CheckOpenSpace(int x, int y) const
+{
+	if (x < 0 || x > kGridWidth) return false;
+	if (y < 0 || y > kGridHeight) return false;
+
+	return m_grid[x][y] == nullptr;
 }
 
 XMFLOAT2 PuyoGrid::PositionToCoordinates(float x, float y)

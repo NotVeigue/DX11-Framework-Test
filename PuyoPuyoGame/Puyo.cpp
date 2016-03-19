@@ -1,15 +1,16 @@
 #include "PuyoPuyoGamePCH.h"
 #include "Puyo.h"
+#include "PuyoValues.h"
 
 Puyo::Puyo()
 	: puyoColor(PUYO_COLOR::RED)
 {
-	printf("Puyo Made!! \n");
+	//printf("Puyo Made!! \n");
 }
 
 Puyo::~Puyo()
 {
-	printf("Puyo Destroyed!! \n");
+	//printf("Puyo Destroyed!! \n");
 }
 
 void Puyo::SetRandomColor()

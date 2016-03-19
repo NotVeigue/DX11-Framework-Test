@@ -2,6 +2,7 @@
 #include "PuyoGame.h"
 #include "SimpleVertexShader.h"
 #include "UnlitPixelShader.h"
+#include "PuyoValues.h"
 
 using namespace DirectX;
 
@@ -48,17 +49,21 @@ PuyoGame* PuyoGame::GetSingletonPtr()
 // ----------------------------------------------------------------------------------
 
 PuyoGame::PuyoGame()
+	: m_p1Controller(KEY::A, KEY::D, KEY::W, KEY::S)
+	, m_p2Controller(KEY::LEFT, KEY::RIGHT, KEY::UP, KEY::DOWN)
+	, m_p1Instance(&m_p1Controller, false)
+	, m_p2Instance(&m_p2Controller, true)
 {
 	LoadAssets();
 
 	// Debug
-	m_p1Instance.transform.SetPosition(XMVectorSet(-350.0f, -100.0f, (float)PUYO_SIZE, 1.0f));
-	m_p2Instance.transform.SetPosition(XMVectorSet(200.0f, -100.0f, (float)PUYO_SIZE, 1.0f));
+	m_p1Instance.transform.SetPosition(XMVectorSet(-FIELD_WIDTH - (QUEUE_WIDTH + QUEUE_PADDING) * PUYO_SIZE - FIELD_PADDING, -100.0f, (float)PUYO_SIZE, 1.0f));
+	m_p2Instance.transform.SetPosition(XMVectorSet((QUEUE_WIDTH + QUEUE_PADDING) * PUYO_SIZE + FIELD_PADDING, -100.0f, (float)PUYO_SIZE, 1.0f));
 }
 
 PuyoGame::~PuyoGame()
 {
-	// Debug!!
+	// Free all active puyos
 	for (Puyo* p : m_activePuyoList)
 	{
 		m_puyoPool.FreeObject(p);
@@ -88,17 +93,18 @@ void PuyoGame::LoadAssets()
 
 bool PuyoGame::Update(double dt)
 {
-	bool result = m_p1Instance.Update(dt);
+	//if(!m_p1Instance.Update(dt)) return false;
+	if(!m_p2Instance.Update(dt)) return false;
 	
 	Render();
 
-	return result;
+	return true;
 }
 
 /*
 // Irrelevant because all puyos will be drawn in orthographic projection mode from head on,
 // so there is no chance of overlap.
-bool puyo_compare(const Puyo& a, const Puyo& b)
+bool puyo_compare(const Puyo& a, const Puyo& b)	
 {
 	Camera& camera = PuyoGame::GetSingleton().GetCamera();
 

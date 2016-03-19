@@ -3,6 +3,7 @@
 #include "RenderManager.h"
 #include "ObjectPool.h"
 #include "PuyoInstance.h"
+#include "PuyoKeyboardController.h"
 #include "Puyo.h"
 #include <forward_list>
 
@@ -25,6 +26,10 @@ private:
 	// Player Instances
 	PuyoInstance m_p1Instance;
 	PuyoInstance m_p2Instance;
+
+	// Controller Interfaces
+	PuyoKeyboardController m_p1Controller;
+	PuyoKeyboardController m_p2Controller;
 
 	void LoadAssets();
 	void Render();
