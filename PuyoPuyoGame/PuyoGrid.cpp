@@ -3,25 +3,54 @@
 
 using namespace DirectX;
 
-const int PuyoGrid::kGridWidth = 6;
-const int PuyoGrid::kGridHeight = 13;
-
 PuyoGrid::PuyoGrid()
 {
-	for (int i = 0; i < kGridWidth; i++)
-		for (int j = 0; j < kGridHeight; j++)
-			m_grid[i][j] = nullptr;
 }
 
 PuyoGrid::~PuyoGrid()
 {
 }
 
+// ***************************************************************
+// PRIVATE FUNCTIONS
+// ***************************************************************
+
+void PuyoGrid::ResetCheckedPuyos() const
+{
+	for (int i = 0; i < GRID_WIDTH; i++)
+	{
+		for (int j = 0; j < GRID_HEIGHT; j++)
+		{
+			if (!m_grid[i][j])
+				continue;
+
+			m_grid[i][j]->SetChecked(false);
+		}
+	}
+}
+
+void PuyoGrid::CheckPuyo(int x, int y, PUYO_COLOR c, Puyo** comboStaging, int& comboSize) const
+{
+	m_grid[x][y]->SetChecked(true);
+	*(comboStaging + comboSize) = m_grid[x][y];
+	comboSize++;
+
+	Puyo* p;
+	if ((p = GetPuyoAt(x + 1, y)) && p->puyoColor == c && !p->IsChecked()) CheckPuyo(x + 1, y, c, comboStaging, comboSize);
+	if ((p = GetPuyoAt(x - 1, y)) && p->puyoColor == c && !p->IsChecked()) CheckPuyo(x - 1, y, c, comboStaging, comboSize);
+	if ((p = GetPuyoAt(x, y + 1)) && p->puyoColor == c && !p->IsChecked()) CheckPuyo(x, y + 1, c, comboStaging, comboSize);
+	if ((p = GetPuyoAt(x, y - 1)) && p->puyoColor == c && !p->IsChecked()) CheckPuyo(x, y - 1, c, comboStaging, comboSize);
+}
+
+// ***************************************************************
+// PUBLIC FUNCTIONS
+// ***************************************************************
+
 void PuyoGrid::AddPuyo(Puyo* puyo, int x, int y)
 {
 	printf("Puyo was at position: %d, %d \n", x, y);
-	assert(x < kGridWidth);
-	assert(y < kGridHeight);
+	assert(x < GRID_WIDTH);
+	assert(y < GRID_HEIGHT);
 	assert(!m_grid[x][y]);
 
 	puyo->transform.SetPosition(XMVectorSet(x, y, 0.0f, 1.0f));
@@ -30,8 +59,8 @@ void PuyoGrid::AddPuyo(Puyo* puyo, int x, int y)
 
 Puyo* PuyoGrid::RemovePuyo(int x, int y)
 {
-	assert(x < kGridWidth);
-	assert(y < kGridHeight);
+	assert(x < GRID_WIDTH);
+	assert(y < GRID_HEIGHT);
 	
 	Puyo* puyo = m_grid[x][y];
 	m_grid[x][y] = nullptr;
@@ -41,21 +70,45 @@ Puyo* PuyoGrid::RemovePuyo(int x, int y)
 
 Puyo* PuyoGrid::GetPuyoAt(int x, int y) const
 {
-	if (x < 0 || x > kGridWidth) return nullptr;
-	if (y < 0 || y > kGridHeight) return nullptr;
+	if (x < 0 || x >= GRID_WIDTH) return nullptr;
+	if (y < 0 || y >= GRID_HEIGHT) return nullptr;
 
 	return m_grid[x][y];
 }
 
 bool PuyoGrid::CheckOpenSpace(int x, int y) const
 {
-	if (x < 0 || x > kGridWidth) return false;
-	if (y < 0 || y > kGridHeight) return false;
+	if (x < 0 || x >= GRID_WIDTH) return false;
+	if (y < 0 || y >= GRID_HEIGHT) return false;
 
 	return m_grid[x][y] == nullptr;
 }
 
-XMFLOAT2 PuyoGrid::PositionToCoordinates(float x, float y)
+int PuyoGrid::FindCombos(Puyo** comboStaging) const
 {
-	return XMFLOAT2(round(x), round(y));
+	printf("Resetting Checked \n");
+	ResetCheckedPuyos();
+
+	Puyo* p = nullptr;
+	int comboSize = 0;
+	int totalCombo = 0;
+	for (int i = 0; i < GRID_WIDTH; i++)
+	{
+		for (int j = 0; j < GRID_HEIGHT; j++)
+		{
+			if ((p = m_grid[i][j]) == nullptr || p->IsChecked())
+				continue;
+
+			comboSize = 0;
+			CheckPuyo(i, j, p->puyoColor, comboStaging, comboSize);
+
+			if (comboSize >= MIN_COMBO_SIZE)
+			{
+				comboStaging += comboSize;
+				totalCombo += comboSize;
+			}
+		}	
+	}
+
+	return totalCombo;
 }

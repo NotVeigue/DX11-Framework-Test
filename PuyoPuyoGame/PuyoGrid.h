@@ -1,18 +1,17 @@
 #pragma once
 #include "DirectXIncludes.h"
 #include "Puyo.h"
+#include "PuyoValues.h"
 
 class PuyoGrid
 {
 private:
 
-	Puyo* m_grid[6][13];
+	mutable Puyo* m_grid[GRID_WIDTH][GRID_HEIGHT] = {};
+	void ResetCheckedPuyos() const;
+	void CheckPuyo(int x, int y, PUYO_COLOR c, Puyo** comboStaging, int& comboSize) const;
 
 public:
-
-	static const int kGridWidth;
-	static const int kGridHeight;
-
 	PuyoGrid();
 	~PuyoGrid();
 
@@ -24,10 +23,6 @@ public:
 	Puyo* RemovePuyo(int x, int y);
 	Puyo* GetPuyoAt(int x, int y) const;
 	bool CheckOpenSpace(int x, int y) const;
-	DirectX::XMFLOAT2 PositionToCoordinates(float x, float y);
-	// AddPuyo
-	// RemovePuyo
-	// CoordinatesToPosition
-	// PositionToCoordinates
+	int FindCombos(Puyo** comboStaging) const;
 };
 

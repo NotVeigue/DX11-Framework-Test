@@ -2,10 +2,11 @@
 #include "PuyoInstance.h"
 #include "PuyoGame.h"
 #include "InputManager.h"
-#include "PuyoValues.h"
+#include "XMExtensions.h"
 #include <math.h>
 
 using namespace DirectX;
+using namespace XMExtensions;
 
 PuyoInstance::PuyoInstance(PuyoController* controller, bool rightSide)
 	: m_controller(controller)
@@ -23,6 +24,10 @@ PuyoInstance::~PuyoInstance()
 {
 
 }
+
+// ***************************************************************
+// LOCAL HELPER FUNCTIONS
+// ***************************************************************
 
 int GetGridY(float y)
 {
@@ -44,17 +49,99 @@ bool CheckValidMove(int dx, int dy, const PuyoGrid& grid, PuyoUnit* unit)
 	return CheckValidSpace(XMFLOAT2(p.x + dx, p.y + dy), grid) && CheckValidSpace(XMFLOAT2(h.x + dx, h.y + dy), grid);
 }
 
-bool CheckValidRotation(PuyoGrid& grid, PuyoUnit* unit)
+void TryRotation(PuyoGrid& grid, PuyoUnit* unit)
 {
 	const XMFLOAT2& o = unit->GetOrientation();
-	const XMFLOAT2 p = unit->GetPosition(0);
+	const XMFLOAT2& p = unit->GetPosition(0);
 	XMFLOAT2 r(o.y, -o.x);
 
-	return CheckValidSpace(p, grid) && CheckValidSpace(XMFLOAT2(p.x + r.x, p.y + r.y), grid);
+	while (r != o && !CheckValidSpace(p + r, grid))
+	{
+		if (r.x != 0 && CheckValidSpace(p - r, grid))
+		{
+			unit->Translate(-r.x, -r.y);
+			unit->SetRotation(r);
+			return;
+		}
+
+		float x = r.x;
+		r.x = r.y;
+		r.y = -x;
+	}
+
+	if (r == o)
+		return;
+
+	unit->SetRotation(r);
 }
+
+// ***************************************************************
+// PRIVATE FUNCTIONS
+// ***************************************************************
+
+// Locate puyos in the grid left floating after removing combo puyos and remove them, adding them to the falling puyos list
+void PuyoInstance::HandleFloatingPuyos()
+{
+	for (int i = 0; i < GRID_WIDTH; i++)
+	{
+		// Checking from bottom up. We start at the row above the bottom-most. Thist ensures that effcts of lower removals
+		// bubble up through the stacks.
+		for (int j = 1; j < GRID_HEIGHT; j++)
+		{
+			if (m_puyoGrid.CheckOpenSpace(i, j))
+				continue;
+
+			if (m_puyoGrid.CheckOpenSpace(i, j - 1))
+			{
+				m_fallingPuyos.push_back(m_puyoGrid.RemovePuyo(i, j));
+			}
+		}
+	}
+}
+
+// Removes puyos in the combo list from the grid and deallocates them
+void PuyoInstance::RemoveComboPuyos(int comboSize)
+{
+	XMFLOAT2 pos;
+	for (int i = 0; i < comboSize; i++)
+	{
+		XMStoreFloat2(&pos, m_comboStaging[i]->transform.GetPosition());
+		PuyoGame::GetSingleton().FreePuyo(m_puyoGrid.RemovePuyo((int)pos.x, (int)pos.y));
+	}
+
+	HandleFloatingPuyos();
+}
+
+// Identify any puyos that are part of a combo and add them to our staging area to be removed
+void PuyoInstance::CheckForCombos()
+{
+	// Clear the combo staging array
+	memset(m_comboStaging, 0, sizeof(m_comboStaging));
+
+	int comboSize = m_puyoGrid.FindCombos(m_comboStaging);
+	
+	if (comboSize == 0)
+		return;
+
+	// TODO: Ideally, this won't happen yet. We will enter some fading stage where the puyos disappear before we
+	//		 call RemoveComboPuyos.
+
+	RemoveComboPuyos(comboSize);
+}
+
+// ***************************************************************
+// PUBLIC FUNCTIONS
+// ***************************************************************
 
 bool PuyoInstance::Update(double dt)
 {
+	// DEBUG
+	if (InputManager::GetSingleton().IsKeyDown(KEY::SPACE))
+	{
+		m_gameState = PUYO_STATE::PAUSED;
+		return true;
+	}
+
 	switch(m_gameState)
 	{
 		case PUYO_STATE::PLAYER_CONTROL:
@@ -71,34 +158,48 @@ bool PuyoInstance::Update(double dt)
 			{
 				dx = 1.0f;
 			}
-			else if (m_controller->Flip() && CheckValidRotation(m_puyoGrid, m_currentUnit))
+			else if (m_controller->Flip() /*&& CheckValidRotation(m_puyoGrid, m_currentUnit)*/)
 			{
-				m_currentUnit->Rotate(false);
+				TryRotation(m_puyoGrid, m_currentUnit);
 			}
 
 			m_currentUnit->Translate(dx, dy);
 
 			const XMFLOAT2& p = m_currentUnit->GetPosition(0);
 			const XMFLOAT2& h = m_currentUnit->GetPosition(1);
+
 			Puyo* contactPuyo = nullptr;
+			Puyo* otherPuyo = nullptr;
 			const XMFLOAT2* contactPos = nullptr;
+			const XMFLOAT2* otherPos = nullptr;
 			if (!CheckValidSpace(p, m_puyoGrid))
 			{
 				contactPos = &p;
+				otherPos = &h;
 				contactPuyo = m_currentUnit->puyos[0];
+				otherPuyo = m_currentUnit->puyos[1];
 			}
 			else if (!CheckValidSpace(h, m_puyoGrid))
 			{
 				contactPos = &h;
+				otherPos = &p;
 				contactPuyo = m_currentUnit->puyos[1];
+				otherPuyo = m_currentUnit->puyos[0];
 			}
 
 			if (!contactPuyo)
 				return true;
 
 			m_puyoGrid.AddPuyo(contactPuyo, (int)contactPos->x, (int)GetGridY(contactPos->y) + 1);
-			m_fallingPuyos.push_back(contactPuyo == m_currentUnit->puyos[0] ? m_currentUnit->puyos[1] :
-				m_currentUnit->puyos[0]);
+			
+			if (!CheckValidSpace(*otherPos, m_puyoGrid))
+			{
+				m_puyoGrid.AddPuyo(otherPuyo, (int)otherPos->x, (int)GetGridY(otherPos->y) + 1);
+			}
+			else
+			{
+				m_fallingPuyos.push_back(otherPuyo);
+			}	
 
 			m_gameState = PUYO_STATE::RESOLVING;
 			break;
@@ -133,15 +234,19 @@ bool PuyoInstance::Update(double dt)
 				}
 			}
 
-			if (m_fallingPuyos.size() == 0)
-			{
-				printf("Size was 0! \n");
-				m_currentUnit = m_puyoQueue.GetNextUnit();
-				m_currentUnit->SetParent(&transform);
-				m_currentUnit->SetPosition(PUYO_SPAWN_X, PUYO_SPWAN_Y);
-				m_gameState = PUYO_STATE::PLAYER_CONTROL;
-				//m_gameState = PUYO_STATE::PAUSED;
-			}
+			if (m_fallingPuyos.size() > 0)
+				return true;
+
+			printf("Size was 0! \n");
+			CheckForCombos();
+
+			if (m_fallingPuyos.size() > 0)
+				return true;
+
+			m_currentUnit = m_puyoQueue.GetNextUnit();
+			m_currentUnit->SetParent(&transform);
+			m_currentUnit->SetPosition(PUYO_SPAWN_X, PUYO_SPWAN_Y);
+			m_gameState = PUYO_STATE::PLAYER_CONTROL;
 
 			break;
 		}
@@ -153,6 +258,10 @@ bool PuyoInstance::Update(double dt)
 		case PUYO_STATE::PAUSED:
 		{
 			// Wait for input to tell us to unpause
+			if (InputManager::GetSingleton().IsKeyDown(KEY::SPACE))
+			{
+				m_gameState = PUYO_STATE::PLAYER_CONTROL;
+			}
 			break;
 		}
 	}

@@ -15,12 +15,19 @@ enum PUYO_COLOR
 
 class Puyo
 {
+private:
+	bool checked = false;
+
 public:
 	Puyo();
 	~Puyo();
 
-	PUYO_COLOR puyoColor;
 	Transform transform;
+	PUYO_COLOR puyoColor;
 
 	void SetRandomColor();
+
+	// Getters and setters just in case I ever need to do anything else when checked is changed...
+	void SetChecked(bool value);
+	bool IsChecked() const;
 };

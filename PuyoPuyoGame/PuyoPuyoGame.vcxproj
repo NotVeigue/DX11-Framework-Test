@@ -169,6 +169,7 @@
     <ClInclude Include="PuyoPuyoGamePCH.h" />
     <ClInclude Include="PuyoQueue.h" />
     <ClInclude Include="PuyoValues.h" />
+    <ClInclude Include="XMExtensions.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Data\SimpleVertexShader.hlsl">

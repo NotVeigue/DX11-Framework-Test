@@ -62,6 +62,27 @@ void PuyoUnit::SetPosition(float x, float y)
 	SetTransforms();
 }
 
+void PuyoUnit::SetPosition(DirectX::XMFLOAT2& a)
+{
+	m_positions[0] = a;
+	UpdateHangingPuyo();
+	SetTransforms();
+}
+
+void PuyoUnit::SetRotation(float x, float y)
+{
+	m_orientation.x = x; m_orientation.y = y;
+	UpdateHangingPuyo();
+	SetTransforms();
+}
+
+void PuyoUnit::SetRotation(DirectX::XMFLOAT2& a)
+{
+	m_orientation = a;
+	UpdateHangingPuyo();
+	SetTransforms();
+}
+
 void PuyoUnit::Rotate(bool counterClockwise)
 {
 	float x = m_orientation.x;

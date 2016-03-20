@@ -17,3 +17,13 @@ void Puyo::SetRandomColor()
 {
 	puyoColor = static_cast<PUYO_COLOR>(rand() % USED_PUYO_COLORS);
 }
+
+void Puyo::SetChecked(bool value)
+{
+	checked = value;
+}
+
+bool Puyo::IsChecked() const
+{
+	return checked;
+}

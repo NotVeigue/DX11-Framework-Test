@@ -28,6 +28,9 @@ public:
 	void SetParent(Transform* parent);
 
 	void SetPosition(float x, float y);
+	void SetPosition(DirectX::XMFLOAT2& a);
+	void SetRotation(float x, float y);
+	void SetRotation(DirectX::XMFLOAT2& a);
 	
 	void Translate(float x, float y);
 

@@ -1,6 +1,11 @@
 #pragma once
 
+// VALUES THAT NEED TO REMAIN HERE
+#define GRID_WIDTH 6
+#define GRID_HEIGHT 13
 #define USED_PUYO_COLORS 4
+
+// VALUES THAT COULD BE MOVED TO A CONFIG FILE
 #define PUYO_SIZE 20.0f
 #define FIELD_WIDTH PUYO_SIZE * 6.0f
 #define QUEUE_WIDTH 4.0f
@@ -10,3 +15,4 @@
 #define PUYO_SPWAN_Y 11.0f
 #define FALL_SPEED -1.5f
 #define FALL_SPEED_FAST -4.0f
+#define MIN_COMBO_SIZE 4

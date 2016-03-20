@@ -2,8 +2,9 @@
 #include "Transform.h"
 #include "PuyoGrid.h"
 #include "PuyoQueue.h"
-#include <forward_list>
 #include "PuyoController.h"
+#include "PuyoValues.h"
+#include <forward_list>
 
 class PuyoInstance
 {
@@ -18,6 +19,7 @@ private:
 	PUYO_STATE m_gameState;
 
 	PuyoGrid m_puyoGrid;
+	Puyo* m_comboStaging[GRID_WIDTH * GRID_HEIGHT] = {};
 	PuyoQueue m_puyoQueue;
 	PuyoUnit* m_currentUnit;
 	std::list<Puyo*> m_fallingPuyos;
@@ -25,10 +27,14 @@ private:
 
 	PuyoController* m_controller;
 
+	void CheckForCombos();
+	void RemoveComboPuyos(int count);
+	void HandleFloatingPuyos();
+
 	// DEBUG
-	double elapsed = 0.0;
+	/*double elapsed = 0.0;
 	int x = 0, y = 0;
-	double step = 0.5;
+	double step = 0.5;*/
 
 public:
 	PuyoInstance(PuyoController* controller, bool rightSide);
