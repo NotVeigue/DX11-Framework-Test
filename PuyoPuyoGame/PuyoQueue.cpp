@@ -29,6 +29,20 @@ void PuyoUnit::SetTransforms()
 	puyos[1]->transform.SetPosition(DirectX::XMVectorSet(m_positions[1].x, m_positions[1].y, 0.0f, 0.0f));
 }
 
+void PuyoUnit::Initialize(Transform* parent, Puyo* pivot, Puyo* hanging)
+{
+	puyos[0] = pivot;
+	puyos[1] = hanging;
+
+	for (int i = 0; i < 2; i++)
+	{
+		puyos[i]->transform.SetParent(parent);
+		puyos[i]->SetRandomColor();
+	}
+
+	SetRotation(0, 1);
+}
+
 const DirectX::XMFLOAT2& PuyoUnit::GetPosition(int index) const
 {
 	int i = min(max(index, 0), 1);
@@ -102,20 +116,11 @@ PuyoQueue::PuyoQueue()
 {
 	for (int i = 0; i < 4; i++)
 	{
-		for (int j = 0; j < 2; j++)
-		{
-			// Initialize each puyoUnit
-			m_puyoUnits[i].puyos[j] = PuyoGame::GetSingleton().AllocPuyo();
-			m_puyoUnits[i].puyos[j]->transform.SetParent(&transform);
-			m_puyoUnits[i].puyos[j]->SetRandomColor();
-		}
-
-		// Add this unit to the queue
-		m_unitQueue.push(&m_puyoUnits[i]);
+		InitializeUnit(m_puyoUnits[i]);
 
 		// Debug
 		m_puyoUnits[i].SetPosition((float)i, 0.0f);
-		//printf("Setting puyo position!");
+		//printf("Setting puyo position! %d \n", i);
 	}
 
 	// Maybe call a function here to position the puyos in the proper order?
@@ -126,18 +131,30 @@ PuyoQueue::~PuyoQueue()
 {
 }
 
+void PuyoQueue::InitializeUnit(PuyoUnit& unit)
+{
+	unit.Initialize(&transform, 
+		PuyoGame::GetSingleton().AllocPuyo(), 
+		PuyoGame::GetSingleton().AllocPuyo());
+}
+
 PuyoUnit* PuyoQueue::GetNextUnit()
 {
-	PuyoUnit* next = m_unitQueue.front();
-	PuyoUnit* back = m_unitQueue.back();
+	PuyoUnit& next = m_puyoUnits[head];
+	PuyoUnit& end = m_puyoUnits[head - 1 < 0 ? 3 : head - 1];
 
 	// Generate Two New Puyos for the new last spot in the queue
-	back->puyos[0] = PuyoGame::GetSingleton().AllocPuyo();
-	back->puyos[1] = PuyoGame::GetSingleton().AllocPuyo();
+	InitializeUnit(end);
 
 	// Remove the current front of the queue and move it to the back
-	m_unitQueue.pop();
-	m_unitQueue.push(next);
+	head = (++head) % 4;
 
-	return next;
+	// DEBUG
+	for (int i = 0; i < 4; i++)
+	{
+		float offset = (float)((i + (4 - head)) % 4);
+		m_puyoUnits[i].SetPosition(offset, 0.0f);
+	}
+
+	return &next;
 }

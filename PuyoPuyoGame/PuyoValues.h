@@ -14,5 +14,5 @@
 #define PUYO_SPAWN_X 4.0f
 #define PUYO_SPWAN_Y 11.0f
 #define FALL_SPEED -1.5f
-#define FALL_SPEED_FAST -4.0f
+#define FALL_SPEED_FAST -16.0f
 #define MIN_COMBO_SIZE 4

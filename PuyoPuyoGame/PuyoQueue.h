@@ -13,7 +13,6 @@ private:
 
 	// Updates the hanging puyo -- the puyo that does not serve as the pivot -- after the unit has translated or rotated.
 	void UpdateHangingPuyo();
-
 	void SetTransforms();
 
 public:
@@ -25,15 +24,15 @@ public:
 	const DirectX::XMFLOAT2& GetPosition(int index) const;
 	const DirectX::XMFLOAT2& GetOrientation() const;
 
-	void SetParent(Transform* parent);
+	void Initialize(Transform* parent, Puyo* pivot, Puyo* hanging);
 
+	void SetParent(Transform* parent);
 	void SetPosition(float x, float y);
 	void SetPosition(DirectX::XMFLOAT2& a);
 	void SetRotation(float x, float y);
 	void SetRotation(DirectX::XMFLOAT2& a);
-	
-	void Translate(float x, float y);
 
+	void Translate(float x, float y);
 	void Rotate(bool counterClockwise);
 };
 
@@ -42,9 +41,11 @@ public:
 class PuyoQueue
 {
 private:
-	PuyoUnit m_puyoUnits[4];
-	std::queue<PuyoUnit*> m_unitQueue;
 
+	int head = 0;
+	PuyoUnit m_puyoUnits[4];
+
+	void InitializeUnit(PuyoUnit& unit);
 	// TODO: Add functionality for animating the queued puyos.
 
 public:

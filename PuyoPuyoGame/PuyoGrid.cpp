@@ -86,7 +86,6 @@ bool PuyoGrid::CheckOpenSpace(int x, int y) const
 
 int PuyoGrid::FindCombos(Puyo** comboStaging) const
 {
-	printf("Resetting Checked \n");
 	ResetCheckedPuyos();
 
 	Puyo* p = nullptr;

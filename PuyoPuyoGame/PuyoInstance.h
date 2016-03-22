@@ -27,9 +27,18 @@ private:
 
 	PuyoController* m_controller;
 
+	// Helper Functions
+	int GetGridY(float y) const;
+	bool CheckValidSpace(const DirectX::XMFLOAT2& coords) const;
+	bool CheckValidMove(int dx, int dy) const;
+	void TryRotation();
 	void CheckForCombos();
 	void RemoveComboPuyos(int count);
 	void HandleFloatingPuyos();
+
+	// State functions
+	bool DoPlayerControl(double dt);
+	bool DoResolve(double dt);
 
 	// DEBUG
 	/*double elapsed = 0.0;

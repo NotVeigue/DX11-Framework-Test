@@ -15,7 +15,9 @@ PuyoInstance::PuyoInstance(PuyoController* controller, bool rightSide)
 	// Add initialization code here!
 	transform.SetScale(XMVectorSet(PUYO_SIZE, PUYO_SIZE, PUYO_SIZE, PUYO_SIZE));
 	m_puyoQueue.transform.SetParent(&transform);
-	m_puyoQueue.transform.SetPosition(rightSide ? XMVectorSet(-QUEUE_WIDTH - QUEUE_PADDING, 13.0f, 0.0f, 0.0f) :
+	if(rightSide)
+		m_puyoQueue.transform.Rotate(XMQuaternionRotationAxis(XMVectorSet(0.0, 1.0, 0.0, 0.0), XM_PI));
+	m_puyoQueue.transform.SetPosition(rightSide ? XMVectorSet(-QUEUE_PADDING, 13.0f, 0.0f, 0.0f) :
 												  XMVectorSet(QUEUE_PADDING + 6.0f, 13.0f, 0.0f, 0.0f));
 }
 
@@ -26,41 +28,41 @@ PuyoInstance::~PuyoInstance()
 }
 
 // ***************************************************************
-// LOCAL HELPER FUNCTIONS
+// PRIVATE FUNCTIONS
 // ***************************************************************
 
-int GetGridY(float y)
+int PuyoInstance::GetGridY(float y) const
 {
 	return (int)floor(y);
 }
 
-bool CheckValidSpace(const XMFLOAT2& coords, const PuyoGrid& grid)
+bool PuyoInstance::CheckValidSpace(const XMFLOAT2& coords) const
 {
 	int x = (int)coords.x;
 	int y = GetGridY(coords.y);
 
-	return grid.CheckOpenSpace(x, y);
+	return m_puyoGrid.CheckOpenSpace(x, y);
 }
 
-bool CheckValidMove(int dx, int dy, const PuyoGrid& grid, PuyoUnit* unit)
+bool PuyoInstance::CheckValidMove(int dx, int dy) const
 {
-	const XMFLOAT2& p = unit->GetPosition(0);
-	const XMFLOAT2& h = unit->GetPosition(1);
-	return CheckValidSpace(XMFLOAT2(p.x + dx, p.y + dy), grid) && CheckValidSpace(XMFLOAT2(h.x + dx, h.y + dy), grid);
+	const XMFLOAT2& p = m_currentUnit->GetPosition(0);
+	const XMFLOAT2& h = m_currentUnit->GetPosition(1);
+	return CheckValidSpace(XMFLOAT2(p.x + dx, p.y + dy)) && CheckValidSpace(XMFLOAT2(h.x + dx, h.y + dy));
 }
 
-void TryRotation(PuyoGrid& grid, PuyoUnit* unit)
+void PuyoInstance::TryRotation()
 {
-	const XMFLOAT2& o = unit->GetOrientation();
-	const XMFLOAT2& p = unit->GetPosition(0);
+	const XMFLOAT2& o = m_currentUnit->GetOrientation();
+	const XMFLOAT2& p = m_currentUnit->GetPosition(0);
 	XMFLOAT2 r(o.y, -o.x);
 
-	while (r != o && !CheckValidSpace(p + r, grid))
+	while (r != o && !CheckValidSpace(p + r))
 	{
-		if (r.x != 0 && CheckValidSpace(p - r, grid))
+		if (r.x != 0 && CheckValidSpace(p - r))
 		{
-			unit->Translate(-r.x, -r.y);
-			unit->SetRotation(r);
+			m_currentUnit->Translate(-r.x, -r.y);
+			m_currentUnit->SetRotation(r);
 			return;
 		}
 
@@ -72,12 +74,8 @@ void TryRotation(PuyoGrid& grid, PuyoUnit* unit)
 	if (r == o)
 		return;
 
-	unit->SetRotation(r);
+	m_currentUnit->SetRotation(r);
 }
-
-// ***************************************************************
-// PRIVATE FUNCTIONS
-// ***************************************************************
 
 // Locate puyos in the grid left floating after removing combo puyos and remove them, adding them to the falling puyos list
 void PuyoInstance::HandleFloatingPuyos()
@@ -125,8 +123,130 @@ void PuyoInstance::CheckForCombos()
 
 	// TODO: Ideally, this won't happen yet. We will enter some fading stage where the puyos disappear before we
 	//		 call RemoveComboPuyos.
-
 	RemoveComboPuyos(comboSize);
+}
+
+bool PuyoInstance::DoPlayerControl(double dt)
+{
+	// Move the current unit around
+	float dx = 0.0f;
+	float dy = dt * (m_controller->Fall() ? FALL_SPEED_FAST : FALL_SPEED);
+
+
+	// Move Left
+	if (m_controller->MoveLeft() && CheckValidMove(-1, 0))
+	{
+		dx = -1.0f;
+	}
+	// Move Right
+	else if (m_controller->MoveRight() && CheckValidMove(1, 0))
+	{
+		dx = 1.0f;
+	}
+	// Flip clockwise
+	else if (m_controller->Flip())
+	{
+		TryRotation();
+	}
+
+	// Move the unit downward
+	m_currentUnit->Translate(dx, dy);
+
+	// Check to see if either puyo is in contact with another puyo or the floor of the grid
+	const XMFLOAT2& p = m_currentUnit->GetPosition(0);
+	const XMFLOAT2& h = m_currentUnit->GetPosition(1);
+
+	Puyo* contactPuyo = nullptr;
+	Puyo* otherPuyo = nullptr;
+	const XMFLOAT2* contactPos = nullptr;
+	const XMFLOAT2* otherPos = nullptr;
+	if (!CheckValidSpace(p))
+	{
+		contactPos = &p;
+		otherPos = &h;
+		contactPuyo = m_currentUnit->puyos[0];
+		otherPuyo = m_currentUnit->puyos[1];
+	}
+	else if (!CheckValidSpace(h))
+	{
+		contactPos = &h;
+		otherPos = &p;
+		contactPuyo = m_currentUnit->puyos[1];
+		otherPuyo = m_currentUnit->puyos[0];
+	}
+
+	// If neither was in contact, we are done!
+	if (!contactPuyo)
+		return true;
+
+	// Add the touching puyo to the grid
+	m_puyoGrid.AddPuyo(contactPuyo, (int)contactPos->x, (int)GetGridY(contactPos->y) + 1);
+
+	// Check to see if the other puyo is touching anything and handle it accordingly
+	if (!CheckValidSpace(*otherPos))
+	{
+		m_puyoGrid.AddPuyo(otherPuyo, (int)otherPos->x, (int)GetGridY(otherPos->y) + 1);
+	}
+	else
+	{
+		m_fallingPuyos.push_back(otherPuyo);
+	}
+
+	// If contact was made, we need to resolve!
+	m_gameState = PUYO_STATE::RESOLVING;
+
+	return true;
+}
+
+bool PuyoInstance::DoResolve(double dt)
+{
+	// Resolve falling puyos until none are left
+	XMFLOAT2 pos;
+	float dy = dt * FALL_SPEED_FAST;
+
+	// Check each puyo in the falling puyos list to see if it has made contact with another puyo and make if fall if not
+	auto itr = m_fallingPuyos.begin();
+	while (itr != m_fallingPuyos.end())
+	{
+		Puyo* p = *itr;
+		XMStoreFloat2(&pos, p->transform.GetPosition());
+		if (!CheckValidSpace(XMFLOAT2(pos.x, pos.y + dy)))
+		{
+			int x = (int)pos.x;
+			int y = GetGridY(pos.y + dy) + 1;
+			while (!m_puyoGrid.CheckOpenSpace(x, y))
+				y++;
+
+			m_puyoGrid.AddPuyo(p, x, y);
+			m_fallingPuyos.erase(itr++);
+
+			// TODO: Add check to go to game over if puyos are placed in game over zone
+		}
+		else
+		{
+			p->transform.Translate(XMVectorSet(0.0f, dy, 0.0f, 0.0f));
+			++itr;
+		}
+	}
+
+	// If there were still puyos left in the list after that check, we'll have to continue for another frame
+	if (m_fallingPuyos.size() > 0)
+		return true;
+
+	// If all of the falling puyos were added to the grid, we need to check for combos
+	CheckForCombos();
+
+	// If there were new falling puyos added after the combo check, we will have to continue for another frame
+	if (m_fallingPuyos.size() > 0)
+		return true;
+
+	// If we are out of falling puyos, it is time to return control to the player
+	m_currentUnit = m_puyoQueue.GetNextUnit();
+	m_currentUnit->SetParent(&transform);
+	m_currentUnit->SetPosition(PUYO_SPAWN_X, PUYO_SPWAN_Y);
+	m_gameState = PUYO_STATE::PLAYER_CONTROL;
+
+	return true;
 }
 
 // ***************************************************************
@@ -135,119 +255,25 @@ void PuyoInstance::CheckForCombos()
 
 bool PuyoInstance::Update(double dt)
 {
-	// DEBUG
-	if (InputManager::GetSingleton().IsKeyDown(KEY::SPACE))
-	{
-		m_gameState = PUYO_STATE::PAUSED;
-		return true;
-	}
+	bool result = true;
 
 	switch(m_gameState)
 	{
 		case PUYO_STATE::PLAYER_CONTROL:
 		{
-			// Move the current unit around
-			float dx = 0.0f;
-			float dy = dt * (m_controller->Fall() ? FALL_SPEED_FAST : FALL_SPEED);
-
-			if (m_controller->MoveLeft() && CheckValidMove(-1, 0, m_puyoGrid, m_currentUnit))
+			// DEBUG
+			if (InputManager::GetSingleton().IsKeyDown(KEY::SPACE))
 			{
-				dx = -1.0f;
-			}
-			else if (m_controller->MoveRight() && CheckValidMove(1, 0, m_puyoGrid, m_currentUnit))
-			{
-				dx = 1.0f;
-			}
-			else if (m_controller->Flip() /*&& CheckValidRotation(m_puyoGrid, m_currentUnit)*/)
-			{
-				TryRotation(m_puyoGrid, m_currentUnit);
-			}
-
-			m_currentUnit->Translate(dx, dy);
-
-			const XMFLOAT2& p = m_currentUnit->GetPosition(0);
-			const XMFLOAT2& h = m_currentUnit->GetPosition(1);
-
-			Puyo* contactPuyo = nullptr;
-			Puyo* otherPuyo = nullptr;
-			const XMFLOAT2* contactPos = nullptr;
-			const XMFLOAT2* otherPos = nullptr;
-			if (!CheckValidSpace(p, m_puyoGrid))
-			{
-				contactPos = &p;
-				otherPos = &h;
-				contactPuyo = m_currentUnit->puyos[0];
-				otherPuyo = m_currentUnit->puyos[1];
-			}
-			else if (!CheckValidSpace(h, m_puyoGrid))
-			{
-				contactPos = &h;
-				otherPos = &p;
-				contactPuyo = m_currentUnit->puyos[1];
-				otherPuyo = m_currentUnit->puyos[0];
-			}
-
-			if (!contactPuyo)
+				m_gameState = PUYO_STATE::PAUSED;
 				return true;
-
-			m_puyoGrid.AddPuyo(contactPuyo, (int)contactPos->x, (int)GetGridY(contactPos->y) + 1);
-			
-			if (!CheckValidSpace(*otherPos, m_puyoGrid))
-			{
-				m_puyoGrid.AddPuyo(otherPuyo, (int)otherPos->x, (int)GetGridY(otherPos->y) + 1);
 			}
-			else
-			{
-				m_fallingPuyos.push_back(otherPuyo);
-			}	
 
-			m_gameState = PUYO_STATE::RESOLVING;
+			result = DoPlayerControl(dt);
 			break;
 		}
 		case PUYO_STATE::RESOLVING:
 		{
-			// Resolve falling puyos until none are left
-			XMFLOAT2 pos;
-			float dy = dt * FALL_SPEED;
-
-			auto itr = m_fallingPuyos.begin();
-			while (itr != m_fallingPuyos.end())
-			{
-				Puyo* p = *itr;
-				XMStoreFloat2(&pos, p->transform.GetPosition());
-				if (!CheckValidSpace(XMFLOAT2(pos.x, pos.y + dy), m_puyoGrid))
-				{
-					int x = (int)pos.x;
-					int y = GetGridY(pos.y + dy) + 1;
-					while (!m_puyoGrid.CheckOpenSpace(x, y))
-						y++;
-
-					m_puyoGrid.AddPuyo(p, x, y);
-					m_fallingPuyos.erase(itr++);
-
-					// Add check to go to game over if puyos are placed in game over zone
-				}
-				else
-				{
-					p->transform.Translate(XMVectorSet(0.0f, dy, 0.0f, 0.0f));
-					++itr;
-				}
-			}
-
-			if (m_fallingPuyos.size() > 0)
-				return true;
-
-			printf("Size was 0! \n");
-			CheckForCombos();
-
-			if (m_fallingPuyos.size() > 0)
-				return true;
-
-			m_currentUnit = m_puyoQueue.GetNextUnit();
-			m_currentUnit->SetParent(&transform);
-			m_currentUnit->SetPosition(PUYO_SPAWN_X, PUYO_SPWAN_Y);
-			m_gameState = PUYO_STATE::PLAYER_CONTROL;
-
+			result = DoResolve(dt);
 			break;
 		}
 		case PUYO_STATE::GAME_OVER:
@@ -258,6 +284,8 @@ bool PuyoInstance::Update(double dt)
 		case PUYO_STATE::PAUSED:
 		{
 			// Wait for input to tell us to unpause
+
+			// DEBUG
 			if (InputManager::GetSingleton().IsKeyDown(KEY::SPACE))
 			{
 				m_gameState = PUYO_STATE::PLAYER_CONTROL;
@@ -294,5 +322,5 @@ bool PuyoInstance::Update(double dt)
 	//}
 
 	// Do a test here to start!
-	return true;
+	return result;
 }
