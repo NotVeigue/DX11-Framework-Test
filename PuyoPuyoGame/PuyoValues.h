@@ -16,3 +16,7 @@
 #define FALL_SPEED -1.5f
 #define FALL_SPEED_FAST -16.0f
 #define MIN_COMBO_SIZE 4
+
+const float k_leftGridX = -FIELD_WIDTH - (QUEUE_WIDTH + QUEUE_PADDING) * PUYO_SIZE - FIELD_PADDING;
+const float k_rightGridX = (QUEUE_WIDTH + QUEUE_PADDING) * PUYO_SIZE + FIELD_PADDING;
+const float k_gridY = -100.0f;

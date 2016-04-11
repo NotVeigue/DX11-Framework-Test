@@ -347,6 +347,32 @@ std::unique_ptr<Mesh> Mesh::CreateTorus(_In_ ID3D11DeviceContext* deviceContext,
     return mesh;
 }
 
+std::unique_ptr<Mesh> Mesh::CreateQuad(ID3D11DeviceContext* deviceContext, float width, float height, bool rhcoords)
+{
+	VertexCollection vertices;
+	IndexCollection indices;
+
+
+	// NOTE: The y-component of the UV coordinates is actually flipped to account for DirectX's sampling from the top left corner
+	XMVECTOR bottomLeft = g_XMIdentityR0 * width * -0.5f + g_XMIdentityR1 * height * -0.5f;
+	vertices.push_back(VertexPositionNormalTexture(bottomLeft													, g_XMIdentityR2, {0.0f, 1.0f}));
+	vertices.push_back(VertexPositionNormalTexture(bottomLeft + g_XMIdentityR1 * height							, g_XMIdentityR2, {0.0f, 0.0f}));
+	vertices.push_back(VertexPositionNormalTexture(bottomLeft + g_XMIdentityR1 * height + g_XMIdentityR0 * width, g_XMIdentityR2, {1.0f, 0.0f}));
+	vertices.push_back(VertexPositionNormalTexture(bottomLeft + g_XMIdentityR0 * width							, g_XMIdentityR2, {1.0f, 1.0f}));
+
+	indices.push_back(0);
+	indices.push_back(1);
+	indices.push_back(2);
+	indices.push_back(0);
+	indices.push_back(2);
+	indices.push_back(3);
+
+	std::unique_ptr<Mesh> mesh(new Mesh());
+	mesh->Initialize(deviceContext, vertices, indices, rhcoords);
+
+	return mesh;
+}
+
 // Helper for creating a D3D vertex or index buffer.
 template<typename T>
 static void CreateBuffer(_In_ ID3D11Device* device, T const& data, D3D11_BIND_FLAG bindFlags, _Outptr_ ID3D11Buffer** pBuffer)

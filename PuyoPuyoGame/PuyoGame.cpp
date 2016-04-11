@@ -45,7 +45,7 @@ PuyoGame* PuyoGame::GetSingletonPtr()
 }
 
 // ----------------------------------------------------------------------------------
-// Helper Functions
+// Implementation
 // ----------------------------------------------------------------------------------
 
 PuyoGame::PuyoGame()
@@ -54,11 +54,11 @@ PuyoGame::PuyoGame()
 	, m_p1Instance(&m_p1Controller, false)
 	, m_p2Instance(&m_p2Controller, true)
 {
-	LoadAssets();
-
 	// Debug
-	m_p1Instance.transform.SetPosition(XMVectorSet(-FIELD_WIDTH - (QUEUE_WIDTH + QUEUE_PADDING) * PUYO_SIZE - FIELD_PADDING, -100.0f, (float)PUYO_SIZE, 1.0f));
-	m_p2Instance.transform.SetPosition(XMVectorSet((QUEUE_WIDTH + QUEUE_PADDING) * PUYO_SIZE + FIELD_PADDING, -100.0f, (float)PUYO_SIZE, 1.0f));
+	m_p1Instance.transform.SetPosition(XMVectorSet(k_leftGridX, k_gridY, (float)PUYO_SIZE, 1.0f));
+	m_p2Instance.transform.SetPosition(XMVectorSet(k_rightGridX, k_gridY, (float)PUYO_SIZE, 1.0f));
+
+	LoadAssets();
 }
 
 PuyoGame::~PuyoGame()
@@ -76,7 +76,7 @@ void PuyoGame::LoadAssets()
 	// Setup the camera
 	m_orthoCamera.SetMode(CAMERA_MODE::Orthographic);
 	m_orthoCamera.SetOrthographic(800.0f, 600.0f, 0.1f, 100.0f);
-	m_orthoCamera.transform.SetPosition(XMVectorSet(0.0f, 0.0f, -5.0f, 1.0f));
+	m_orthoCamera.transform.SetPosition(XMVectorSet(0.0f, 0.0f, -15.0f, 1.0f));
 	m_orthoCamera.transform.LookAt(XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f), Transform::WORLD_AXES::UP);
 
 	// Load Basic Materials
@@ -88,6 +88,65 @@ void PuyoGame::LoadAssets()
 	m_puyoMaterial	= RenderManager::GetSingleton().CreateMaterial(vs, ps, vscb, pscb);
 	
 	// ToDo: Load any textures/sprite fonts here
+	InitDepthStencil();
+
+	// DEBUG
+	//quadMesh = RenderManager::GetSingleton().CreateMeshResource(Mesh::CreateQuad(RenderManager::GetSingleton().GetDeviceContext()));
+}
+
+void PuyoGame::InitDepthStencil()
+{
+	m_gridStencil.Initialize(RenderManager::GetSingleton().GetDevice(), 800, 600, DXGI_FORMAT_D24_UNORM_S8_UINT, true, 1, 0);
+	RenderManager::GetSingleton().GetDeviceContext()->ClearDepthStencilView(m_gridStencil.dsView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+	ID3D11RenderTargetView* nullRenderTarget[1] = { nullptr };
+	RenderManager::GetSingleton().GetDeviceContext()->OMSetRenderTargets(1, nullRenderTarget, m_gridStencil.dsView);
+	RenderManager::GetSingleton().SetDepthStencilState(DEPTH_STENCIL_STATE::STENCIL_WRITE);
+	RenderManager::GetSingleton().SetRasterizerState(RASTERIZER_STATE::CULL_NONE);
+
+	RHANDLE quadMesh = RenderManager::GetSingleton().CreateMeshResource(Mesh::CreateQuad(RenderManager::GetSingleton().GetDeviceContext()));
+	Material& puyoMaterial = RenderManager::GetSingleton().GetMaterial(m_puyoMaterial);
+	PerObjectConstantBufferData perObjectData;
+
+	//Render();
+	XMMATRIX leftPosition = XMMatrixTranslation(k_leftGridX + PUYO_SIZE * 2.5f, k_gridY + PUYO_SIZE * 5.5f, -10.0f);
+	XMMATRIX rightPosition = XMMatrixTranslation(k_rightGridX + PUYO_SIZE * 2.5f, k_gridY + PUYO_SIZE * 5.5f, -10.0f);
+	XMMATRIX scale = XMMatrixScaling(PUYO_SIZE * 6, PUYO_SIZE * 12, 1.0f);
+
+	perObjectData.WorldMatrix = scale * leftPosition;
+	perObjectData.WorldViewProjectionMatrix = perObjectData.WorldMatrix * m_orthoCamera.GetViewMatrix() * m_orthoCamera.GetProjectionMatrix();
+
+	RenderManager::GetSingleton().UpdateConstantBuffer(puyoMaterial.vsCBHandle, &perObjectData);
+	RenderManager::GetSingleton().DrawWithMaterial(quadMesh, m_puyoMaterial);
+
+	perObjectData.WorldMatrix = scale * rightPosition;
+	perObjectData.WorldViewProjectionMatrix = perObjectData.WorldMatrix * m_orthoCamera.GetViewMatrix() * m_orthoCamera.GetProjectionMatrix();
+
+	RenderManager::GetSingleton().UpdateConstantBuffer(puyoMaterial.vsCBHandle, &perObjectData);
+	RenderManager::GetSingleton().DrawWithMaterial(quadMesh, m_puyoMaterial);
+
+	RenderManager::GetSingleton().ResetRenderTarget();
+	/*ID3D11RenderTargetView* rt;
+	ID3D11DepthStencilView* ds;
+	RenderManager::GetSingleton().GetDeviceContext()->OMGetRenderTargets(1, &rt, &ds);
+	RenderManager::GetSingleton().GetDeviceContext()->OMSetRenderTargets(1, &rt, m_gridStencil.dsView);*/
+	//RenderManager::GetSingleton().GetDeviceContext()->OMGetRenderTargets(1, RenderManager::GetSingleton().GetBackBufferRT(), RenderManager::GetSingleton().GetDepthStencil());
+	/*m_gridStencil.Initialize(RenderManager::GetSingleton().GetDevice(), 800, 600, DXGI_FORMAT_D16_UNORM, true, 1, 0);
+	RenderManager::GetSingleton().GetDeviceContext()->ClearDepthStencilView(testBuffer.dsView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+	ID3D11RenderTargetView* renderTargets[1] = { testTarget.rtView };
+	RenderManager::GetSingleton().GetDeviceContext()->OMSetRenderTargets(1, renderTargets, testBuffer.dsView);
+
+	Material& puyoMaterial = RenderManager::GetSingleton().GetMaterial(m_puyoMaterial);
+	PerObjectConstantBufferData perObjectData;
+	SingleColorConstantBufferData colorData;
+
+	XMMATRIX worldMatrix = quadTransform.GetWorldMatrix();
+	XMMATRIX viewMatrix = m_orthoCamera.GetViewMatrix();
+	XMMATRIX projMatrix = m_orthoCamera.GetProjectionMatrix();
+	perObjectData.WorldMatrix = worldMatrix;
+	perObjectData.InverseTransposeWorldMatrix = XMMatrixTranspose(XMMatrixInverse(nullptr, worldMatrix));
+	perObjectData.WorldViewProjectionMatrix = worldMatrix * viewMatrix * projMatrix;
+	RenderManager::GetSingleton().UpdateConstantBuffer(puyoMaterial.vsCBHandle, &perObjectData);
+	RenderManager::GetSingleton().DrawWithMaterial(quadMesh, m_puyoMaterial);*/
 }
 
 
@@ -96,7 +155,11 @@ bool PuyoGame::Update(double dt)
 	//if(!m_p1Instance.Update(dt)) return false;
 	if(!m_p2Instance.Update(dt)) return false;
 	
+	RenderManager::GetSingleton().SetDepthStencilState(DEPTH_STENCIL_STATE::READ_WRITE);
+	RenderManager::GetSingleton().Clear(DirectX::Colors::AliceBlue, 1.0, 0);
+	RenderManager::GetSingleton().Blit(m_gridStencil.srView, nullptr, SAMPLER_STATE::POINT_WRAP);
 	Render();
+	RenderManager::GetSingleton().Present();
 
 	return true;
 }
@@ -126,7 +189,7 @@ bool puyo_compare(const Puyo* a, const Puyo* b)
 
 void PuyoGame::Render()
 {
-	RenderManager::GetSingleton().Clear(DirectX::Colors::Black, 1.0, 0);
+	//RenderManager::GetSingleton().Clear(DirectX::Colors::Black, 1.0, 0);
 
 	if (m_puyoListDirty)
 	{
@@ -157,8 +220,6 @@ void PuyoGame::Render()
 		
 		RenderManager::GetSingleton().DrawWithMaterial(m_puyoMesh, m_puyoMaterial);
 	}
-
-	RenderManager::GetSingleton().Present();
 }
 
 Puyo* PuyoGame::AllocPuyo()

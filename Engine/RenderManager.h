@@ -23,6 +23,9 @@ enum DEPTH_STENCIL_STATE
 	READ_ONLY,
 	WRITE_ONLY,
 	DEPTH_NONE,
+	STENCIL_WRITE,
+	STENCIL_GT,
+	STENCIL_LT,
 	DEPTH_STENCIL_STATE_COUNT
 };
 
@@ -32,6 +35,7 @@ enum BLEND_STATE
 	ALPHA_BLEND,
 	PREMULTIPLIED_ALPHA,
 	ADDITIVE_BLEND,
+	NO_COLOR,
 	BLEND_STATE_COUNT
 };
 
@@ -67,7 +71,7 @@ struct Material
 		, psCBHandle(0)
 	{}
 
-	Material(RHANDLE vs, RHANDLE ps, RHANDLE vcb, RHANDLE pcb)
+	Material(RHANDLE vs, RHANDLE ps, RHANDLE vcb = 0, RHANDLE pcb = 0)
 		: vsHandle(vs)
 		, psHandle(ps)
 		, vsCBHandle(vcb)
@@ -121,14 +125,19 @@ private:
 	// Present parameters used by the IDXGISwapChain1::Present1 method
 	DXGI_PRESENT_PARAMETERS m_PresentParameters;
 
+	// A material and geometry from blitting to the screen.
+	// I imagine compute shaders may be able to be used to accomplish this more efficiently? I guess I will 
+	RHANDLE m_blitMaterial;
+	RHANDLE m_blitQuad;
+
 	bool Initialize();
 	bool InitStates();
 	bool ResizeSwapChain(int width, int height);
 
 	// Helper functions for creating pre-configured rendering pipeline states
 	bool CreateRasterizerState(D3D11_CULL_MODE cullMode, D3D11_FILL_MODE fillMode, ID3D11RasterizerState** pResult);
-	bool CreateDepthStencilState(bool enable, bool writeEnable, ID3D11DepthStencilState** pResult);
-	bool CreateBlendState(D3D11_BLEND srcBlend, D3D11_BLEND destBlend, ID3D11BlendState** pResult);
+	bool CreateDepthStencilState(bool enable, bool writeEnable, bool stencilEnable, bool stencilWriteEnable, D3D11_COMPARISON_FUNC stencilFunc, ID3D11DepthStencilState** pResult);
+	bool CreateBlendState(D3D11_BLEND srcBlend, D3D11_BLEND destBlend, bool colorWriteEnable, ID3D11BlendState** pResult);
 	bool CreateSamplerState(D3D11_FILTER filter, D3D11_TEXTURE_ADDRESS_MODE addressMode, ID3D11SamplerState** pResult);
 
 public:
@@ -137,6 +146,11 @@ public:
 
 	ID3D11Device* GetDevice() const;
 	ID3D11DeviceContext* GetDeviceContext() const;
+	ID3D11RenderTargetView** GetBackBufferRT() const;
+	ID3D11DepthStencilView** GetDepthStencil() const;
+
+	// Binds the default back buffer render target view and depth stencil view
+	void ResetRenderTarget();
 
 	// Resource creation functions
 	RHANDLE CreateMeshResource(std::unique_ptr<Mesh> meshPtr);
@@ -146,7 +160,7 @@ public:
 	// This can probably be accomplished through separate function calls that set these values for now?
 	RHANDLE CreatePShaderResource(const void* shaderBytecode, size_t bytecodeSize);
 	RHANDLE CreateCBResource(size_t bufferSize);
-	RHANDLE CreateMaterial(RHANDLE vShader, RHANDLE pShader, RHANDLE vCBuffer, RHANDLE pCBuffer);
+	RHANDLE CreateMaterial(RHANDLE vShader, RHANDLE pShader, RHANDLE vCBuffer = 0, RHANDLE pCBuffer = 0);
 
 	// Resource management functions
 	void SetMaterial(RHANDLE materialHandle);
@@ -161,9 +175,10 @@ public:
 	void SetRasterizerState(RASTERIZER_STATE state);
 	void SetDepthStencilState(DEPTH_STENCIL_STATE state);
 	void SetBlendState(BLEND_STATE state);
-	// ToDo: Figure out a way to set sampler states. I could either create a 
-	// standalone function like the ones above that takes a shader type as an
-	// additional parameter, or I could find a way to tie them to Pixel Shaders.
+
+	// Blits the given source texture to the specified destination texture. If the destination is null, the contents of src will be drawn to 
+	// the back buffer.
+	void Blit(ID3D11ShaderResourceView* src, ID3D11RenderTargetView* dst, SAMPLER_STATE samplerState = SAMPLER_STATE::POINT_CLAMP);
 
 	// Set the current viewport used by the rasterizer stage. Only really needs to be called when
 	// resizing the window or doing something special like rendering split-screen. I will expand

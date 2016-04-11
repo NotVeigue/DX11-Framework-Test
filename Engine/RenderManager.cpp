@@ -1,5 +1,7 @@
 #include "RenderManager.h"
 #include "WindowsManager.h"
+#include "BlitVertexShader.h"
+#include "BlitPixelShader.h"
 
 using namespace DirectX;
 
@@ -114,6 +116,14 @@ DXGI_RATIONAL QueryRefreshRate()
 // ----------------------------------------------------------------------------------
 // Implementation
 // ----------------------------------------------------------------------------------
+
+// Constant buffer struct definition for blitting
+//-------------------------------------------------------
+struct BlitConstantBufferVertex
+{
+	XMMATRIX WorldViewProjectionMatrix;
+};
+
 RenderManager::RenderManager() 
 	: m_d3dDevice(nullptr)
 	, m_d3dDeviceContext(nullptr)
@@ -121,15 +131,15 @@ RenderManager::RenderManager()
 	, m_d3dRenderTargetView(nullptr)
 	, m_d3dDepthStencilView(nullptr)
 	, m_d3dDepthStencilBuffer(nullptr)
-	, m_meshID(-1)
-	, m_vsID(-1)
-	, m_psID(-1)
-	, m_cbID(-1)
-	, m_matID(-1)
-	, m_curMesh(-1)
-	, m_curVS(-1)
-	, m_curPS(-1)
-	, m_curMat(-1)
+	, m_meshID(0)
+	, m_vsID(0)
+	, m_psID(0)
+	, m_cbID(0)
+	, m_matID(0)
+	, m_curMesh(0)
+	, m_curVS(0)
+	, m_curPS(0)
+	, m_curMat(0)
 {
 	Initialize();
 	InitStates();
@@ -316,6 +326,14 @@ bool RenderManager::Initialize()
 
 	ZeroMemory(&m_PresentParameters, sizeof(DXGI_PRESENT_PARAMETERS));
 
+	// Asset Creation!
+	RHANDLE blitVS = CreateVShaderResource(g_BlitVertexShader, sizeof(g_BlitVertexShader), VertexPositionNormalTexture::InputElements, VertexPositionNormalTexture::InputElementCount);
+	RHANDLE blitPS = CreatePShaderResource(g_BlitPixelShader, sizeof(g_BlitPixelShader));
+	//RHANDLE blitCB = CreateCBResource(sizeof(BlitConstantBufferVertex));
+	m_blitMaterial = CreateMaterial(blitVS, blitPS);
+	m_blitQuad	   = CreateMeshResource(Mesh::CreateQuad(m_d3dDeviceContext.Get(), 2.0f, 2.0f));
+
+
 	return true;
 }
 
@@ -327,15 +345,19 @@ bool RenderManager::InitStates()
 		CreateRasterizerState(D3D11_CULL_NONE, D3D11_FILL_SOLID, &m_rasterizerStates[CULL_NONE]) &&
 		CreateRasterizerState(D3D11_CULL_NONE, D3D11_FILL_WIREFRAME, &m_rasterizerStates[WIREFRAME]) &&
 
-		CreateDepthStencilState(true, true, &m_depthStencilStates[READ_WRITE]) &&
-		CreateDepthStencilState(true, false, &m_depthStencilStates[READ_ONLY]) &&
-		CreateDepthStencilState(false, true, &m_depthStencilStates[WRITE_ONLY]) &&
-		CreateDepthStencilState(false, false, &m_depthStencilStates[DEPTH_NONE]) &&
+		CreateDepthStencilState(true, true, false, false, D3D11_COMPARISON_ALWAYS, &m_depthStencilStates[READ_WRITE]) &&
+		CreateDepthStencilState(true, false, false, false, D3D11_COMPARISON_ALWAYS, &m_depthStencilStates[READ_ONLY]) &&
+		CreateDepthStencilState(false, true, false, false, D3D11_COMPARISON_ALWAYS, &m_depthStencilStates[WRITE_ONLY]) &&
+		CreateDepthStencilState(false, false, false, false, D3D11_COMPARISON_ALWAYS, &m_depthStencilStates[DEPTH_NONE]) &&
+		CreateDepthStencilState(true, true, true, true, D3D11_COMPARISON_ALWAYS, &m_depthStencilStates[STENCIL_WRITE]) &&
+		CreateDepthStencilState(false, false, true, false, D3D11_COMPARISON_FUNC::D3D11_COMPARISON_GREATER, &m_depthStencilStates[STENCIL_GT]) &&
+		CreateDepthStencilState(false, false, true, false, D3D11_COMPARISON_LESS, &m_depthStencilStates[STENCIL_LT]) &&
 
-		CreateBlendState(D3D11_BLEND_ONE, D3D11_BLEND_ZERO, &m_blendStates[SOLID]) &&
-		CreateBlendState(D3D11_BLEND_SRC_ALPHA, D3D11_BLEND_INV_SRC_ALPHA, &m_blendStates[ALPHA_BLEND]) &&
-		CreateBlendState(D3D11_BLEND_ONE, D3D11_BLEND_INV_SRC_ALPHA, &m_blendStates[PREMULTIPLIED_ALPHA]) &&
-		CreateBlendState(D3D11_BLEND_SRC_ALPHA, D3D11_BLEND_ONE, &m_blendStates[ADDITIVE_BLEND]) &&
+		CreateBlendState(D3D11_BLEND_ONE, D3D11_BLEND_ZERO, true, &m_blendStates[SOLID]) &&
+		CreateBlendState(D3D11_BLEND_SRC_ALPHA, D3D11_BLEND_INV_SRC_ALPHA, true, &m_blendStates[ALPHA_BLEND]) &&
+		CreateBlendState(D3D11_BLEND_ONE, D3D11_BLEND_INV_SRC_ALPHA, true, &m_blendStates[PREMULTIPLIED_ALPHA]) &&
+		CreateBlendState(D3D11_BLEND_SRC_ALPHA, D3D11_BLEND_ONE, true, &m_blendStates[ADDITIVE_BLEND]) &&
+		CreateBlendState(D3D11_BLEND_SRC_ALPHA, D3D11_BLEND_ONE, false, &m_blendStates[NO_COLOR]) &&
 
 		CreateSamplerState(D3D11_FILTER_MIN_MAG_MIP_POINT, D3D11_TEXTURE_ADDRESS_CLAMP, &m_samplerStates[POINT_CLAMP]) &&
 		CreateSamplerState(D3D11_FILTER_MIN_MAG_MIP_POINT, D3D11_TEXTURE_ADDRESS_WRAP, &m_samplerStates[POINT_WRAP]) &&
@@ -369,15 +391,22 @@ bool RenderManager::CreateRasterizerState(D3D11_CULL_MODE cullMode, D3D11_FILL_M
 	return true;
 }
 
-bool RenderManager::CreateDepthStencilState(bool enable, bool writeEnable, ID3D11DepthStencilState** pResult)
+bool RenderManager::CreateDepthStencilState(bool enable, bool writeEnable, bool stencilEnable, bool stencilWriteEnable, D3D11_COMPARISON_FUNC stencilFunc, ID3D11DepthStencilState** pResult)
 {
 	D3D11_DEPTH_STENCIL_DESC depthStencilStateDesc;
 	ZeroMemory(&depthStencilStateDesc, sizeof(D3D11_DEPTH_STENCIL_DESC));
 
 	depthStencilStateDesc.DepthEnable = enable;
-	depthStencilStateDesc.DepthWriteMask = writeEnable ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;;
+	depthStencilStateDesc.DepthWriteMask = writeEnable ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
 	depthStencilStateDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
-	depthStencilStateDesc.StencilEnable = false;
+	depthStencilStateDesc.StencilEnable = stencilEnable;
+	depthStencilStateDesc.StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK;
+	depthStencilStateDesc.StencilWriteMask = stencilWriteEnable ? D3D11_DEFAULT_STENCIL_WRITE_MASK : 0;
+	depthStencilStateDesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+	depthStencilStateDesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+	depthStencilStateDesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_REPLACE;
+	depthStencilStateDesc.FrontFace.StencilFunc = stencilFunc;
+	depthStencilStateDesc.BackFace = depthStencilStateDesc.FrontFace;
 
 	HRESULT hr = m_d3dDevice->CreateDepthStencilState(&depthStencilStateDesc, pResult);
 	if (FAILED(hr))
@@ -391,18 +420,16 @@ bool RenderManager::CreateDepthStencilState(bool enable, bool writeEnable, ID3D1
 	return true;
 }
 
-bool RenderManager::CreateBlendState(D3D11_BLEND srcBlend, D3D11_BLEND destBlend, ID3D11BlendState** pResult)
+bool RenderManager::CreateBlendState(D3D11_BLEND srcBlend, D3D11_BLEND destBlend, bool colorWriteEnable, ID3D11BlendState** pResult)
 {
 	D3D11_BLEND_DESC blendStateDesc;
 	ZeroMemory(&blendStateDesc, sizeof(blendStateDesc));
 
-	blendStateDesc.RenderTarget[0].BlendEnable = (srcBlend != D3D11_BLEND_ONE) ||
-		(destBlend != D3D11_BLEND_ZERO);
-
+	blendStateDesc.RenderTarget[0].BlendEnable = (srcBlend != D3D11_BLEND_ONE) || (destBlend != D3D11_BLEND_ZERO);
 	blendStateDesc.RenderTarget[0].SrcBlend = blendStateDesc.RenderTarget[0].SrcBlendAlpha = srcBlend;
 	blendStateDesc.RenderTarget[0].DestBlend = blendStateDesc.RenderTarget[0].DestBlendAlpha = destBlend;
 	blendStateDesc.RenderTarget[0].BlendOp = blendStateDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
-	blendStateDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+	blendStateDesc.RenderTarget[0].RenderTargetWriteMask = colorWriteEnable ? D3D11_COLOR_WRITE_ENABLE_ALL : 0;
 
 	HRESULT hr = m_d3dDevice->CreateBlendState(&blendStateDesc, pResult);
 	if (FAILED(hr))
@@ -424,8 +451,10 @@ bool RenderManager::CreateSamplerState(D3D11_FILTER filter, D3D11_TEXTURE_ADDRES
 	samplerStateDesc.Filter = filter;
 	samplerStateDesc.AddressU = addressMode;
 	samplerStateDesc.AddressV = addressMode;
-	samplerStateDesc.AddressW = addressMode;
-	samplerStateDesc.MaxAnisotropy = (m_d3dDevice->GetFeatureLevel() > D3D_FEATURE_LEVEL_9_1) ? 16 : 2;
+	samplerStateDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerStateDesc.MaxAnisotropy = 1;//(m_d3dDevice->GetFeatureLevel() > D3D_FEATURE_LEVEL_9_1) ? 16 : 2;
+	samplerStateDesc.MipLODBias = 0.0f;
+	samplerStateDesc.MinLOD = -FLT_MAX;
 	samplerStateDesc.MaxLOD = FLT_MAX;
 	samplerStateDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
 
@@ -451,6 +480,22 @@ ID3D11DeviceContext* RenderManager::GetDeviceContext() const
 	return m_d3dDeviceContext.Get();
 }
 
+ID3D11RenderTargetView** RenderManager::GetBackBufferRT() const
+{
+	return const_cast<ID3D11RenderTargetView**>(m_d3dRenderTargetView.GetAddressOf());
+}
+
+ID3D11DepthStencilView** RenderManager::GetDepthStencil() const
+{
+	return const_cast<ID3D11DepthStencilView**>(m_d3dDepthStencilView.GetAddressOf());
+}
+
+
+void RenderManager::ResetRenderTarget()
+{
+	m_d3dDeviceContext->OMSetRenderTargets(1, m_d3dRenderTargetView.GetAddressOf(), m_d3dDepthStencilView.Get());
+}
+
 void RenderManager::SetRasterizerState(RASTERIZER_STATE state)
 {
 	m_d3dDeviceContext->RSSetState(m_rasterizerStates[state].Get());
@@ -464,6 +509,23 @@ void RenderManager::SetDepthStencilState(DEPTH_STENCIL_STATE state)
 void RenderManager::SetBlendState(BLEND_STATE state)
 {
 	m_d3dDeviceContext->OMSetBlendState(m_blendStates[state].Get(), nullptr, 0xFFFFFFFF);
+}
+
+void RenderManager::Blit(ID3D11ShaderResourceView* src, ID3D11RenderTargetView* dst, SAMPLER_STATE samplerState)
+{
+	// Save the previous render targets
+	ID3D11RenderTargetView* rt;
+	ID3D11DepthStencilView* ds;
+	m_d3dDeviceContext->OMGetRenderTargets(1, &rt, &ds);
+
+	m_d3dDeviceContext->OMSetRenderTargets(1, dst == nullptr ? m_d3dRenderTargetView.GetAddressOf() : &dst, nullptr);
+	m_d3dDeviceContext->PSSetShaderResources(0, 1, &src);
+	m_d3dDeviceContext->PSSetSamplers(0, 1, m_samplerStates[samplerState].GetAddressOf());
+
+	DrawWithMaterial(m_blitQuad, m_blitMaterial);
+
+	// Restor the original render targets
+	m_d3dDeviceContext->OMSetRenderTargets(1, &rt, ds);
 }
 
 void RenderManager::SetViewport(float width, float height, float topLeftX, float topLeftY, float minDepth, float maxDepth)
@@ -481,8 +543,11 @@ void RenderManager::SetViewport(float width, float height, float topLeftX, float
 void RenderManager::Clear(const FLOAT clearColor[4], FLOAT clearDepth, UINT8 clearStencil)
 {
 	assert(m_d3dDeviceContext);
-	m_d3dDeviceContext->ClearRenderTargetView(m_d3dRenderTargetView.Get(), clearColor);
-	m_d3dDeviceContext->ClearDepthStencilView(m_d3dDepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, clearDepth, clearStencil);
+	ID3D11RenderTargetView* rt = nullptr;
+	ID3D11DepthStencilView* dsv = nullptr;
+	m_d3dDeviceContext->OMGetRenderTargets(1, &rt, &dsv);
+	m_d3dDeviceContext->ClearRenderTargetView(rt, clearColor);
+	m_d3dDeviceContext->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, clearDepth, clearStencil);
 }
 
 void RenderManager::Present()
@@ -598,10 +663,10 @@ RHANDLE RenderManager::CreateCBResource(size_t bufferSize)
 
 RHANDLE RenderManager::CreateMaterial(RHANDLE vShader, RHANDLE pShader, RHANDLE vCBuffer, RHANDLE pCBuffer)
 {
-	assert(vShader >= 0 && vShader <= m_vsID);
-	assert(pShader >= 0 && vShader <= m_psID);
-	assert(vCBuffer >= 0 && vCBuffer <= m_cbID);
-	assert(pCBuffer >= 0 && pCBuffer <= m_cbID);
+	assert(vShader > 0 && vShader <= m_vsID);
+	assert(pShader > 0 && vShader <= m_psID);
+	//assert(vCBuffer > 0 && vCBuffer <= m_cbID);
+	//assert(pCBuffer > 0 && pCBuffer <= m_cbID);
 
 	RHANDLE handle = ++m_matID;
 	std::unique_ptr<Material> temp(new Material(vShader, pShader, vCBuffer, pCBuffer));
@@ -615,12 +680,15 @@ void RenderManager::SetMaterial(RHANDLE materialHandle)
 	if (m_curMat == materialHandle)
 		return;
 
-	assert(materialHandle >= 0 && materialHandle <= m_matID);
+	assert(materialHandle > 0 && materialHandle <= m_matID);
 
-	SetVertexShader(m_materialMap[materialHandle]->vsHandle);
-	SetPixelShader(m_materialMap[materialHandle]->psHandle);
-	SetVSConstantBuffer(m_materialMap[materialHandle]->vsCBHandle);
-	SetPSConstantBuffer(m_materialMap[materialHandle]->psCBHandle);
+	Material* material = m_materialMap[materialHandle].get();
+	SetVertexShader(material->vsHandle);
+	SetPixelShader(material->psHandle);
+	if(material->vsCBHandle != 0)
+		SetVSConstantBuffer(material->vsCBHandle);
+	if(material->psCBHandle != 0)
+		SetPSConstantBuffer(material->psCBHandle);
 	
 	m_curMat = materialHandle;
 }
@@ -630,7 +698,7 @@ void RenderManager::SetVertexShader(RHANDLE shaderHandle)
 	if (m_curVS == shaderHandle)
 		return;
 
-	assert(shaderHandle >= 0 && shaderHandle <= m_vsID);
+	assert(shaderHandle > 0 && shaderHandle <= m_vsID);
 
 	m_d3dDeviceContext->VSSetShader(m_vShaderMap[shaderHandle].Get(), nullptr, 0);
 	m_d3dDeviceContext->IASetInputLayout(m_vsInputLayoutMap[shaderHandle].Get());
@@ -644,7 +712,7 @@ void RenderManager::SetPixelShader(RHANDLE shaderHandle)
 	if (m_curPS == shaderHandle)
 		return;
 
-	assert(shaderHandle >= 0 && shaderHandle <= m_psID);
+	assert(shaderHandle > 0 && shaderHandle <= m_psID);
 
 	m_d3dDeviceContext->PSSetShader(m_pShaderMap[shaderHandle].Get(), nullptr, 0);
 	
@@ -653,29 +721,33 @@ void RenderManager::SetPixelShader(RHANDLE shaderHandle)
 
 void RenderManager::SetVSConstantBuffer(RHANDLE cbHandle)
 {
-	assert(cbHandle >= 0 && cbHandle <= m_cbID);
+	//assert(cbHandle > 0 && cbHandle <= m_cbID);
+	if (cbHandle == 0 || cbHandle > m_cbID)
+		return;
 
 	m_d3dDeviceContext->VSSetConstantBuffers(0, 1, m_cBufferMap[cbHandle].GetAddressOf());
 }
 
 void RenderManager::SetPSConstantBuffer(RHANDLE cbHandle)
 {
-	assert(cbHandle >= 0 && cbHandle <= m_cbID);
+	//assert(cbHandle > 0 && cbHandle <= m_cbID);
+	if (cbHandle == 0 || cbHandle > m_cbID)
+		return;
 
 	m_d3dDeviceContext->PSSetConstantBuffers(0, 1, m_cBufferMap[cbHandle].GetAddressOf());
 }
 
 void RenderManager::UpdateConstantBuffer(RHANDLE cbHandle, const void* cbData)
 {
-	assert(cbHandle >= 0 && cbHandle <= m_cbID);
+	assert(cbHandle > 0 && cbHandle <= m_cbID);
 
 	m_d3dDeviceContext->UpdateSubresource(m_cBufferMap[cbHandle].Get(), 0, nullptr, cbData, 0, 0);
 }
 
 void RenderManager::DrawWithMaterial(RHANDLE meshHandle, RHANDLE materialHandle)
 {
-	assert(meshHandle >= 0 && meshHandle <= m_meshID);
-	assert(materialHandle >= 0 && materialHandle <= m_matID);
+	assert(meshHandle > 0 && meshHandle <= m_meshID);
+	assert(materialHandle > 0 && materialHandle <= m_matID);
 
 	SetMaterial(materialHandle);
 
@@ -686,7 +758,7 @@ void RenderManager::DrawWithMaterial(RHANDLE meshHandle, RHANDLE materialHandle)
 
 Material& RenderManager::GetMaterial(RHANDLE materialHandle)
 {
-	assert(materialHandle >= 0 && materialHandle <= m_matID);
+	assert(materialHandle > 0 && materialHandle <= m_matID);
 
 	return *m_materialMap[materialHandle];
 }

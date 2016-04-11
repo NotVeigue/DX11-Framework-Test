@@ -25,6 +25,7 @@ bool Update(double dt)
 		return false;
 
 	g_puyoGame->Update(dt);
+	printf("FPS: %f \r", 1.0f / dt);
 
 	return true;
 }

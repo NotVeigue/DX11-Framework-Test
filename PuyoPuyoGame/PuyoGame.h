@@ -5,6 +5,7 @@
 #include "PuyoInstance.h"
 #include "PuyoKeyboardController.h"
 #include "Puyo.h"
+#include "BufferUtils.h"
 #include <forward_list>
 
 
@@ -33,6 +34,10 @@ private:
 
 	void LoadAssets();
 	void Render();
+
+	// We're gonna use a depth stencil for this just because we can!!
+	DepthStencilBuffer m_gridStencil;
+	void InitDepthStencil();
 
 public:
 	PuyoGame();

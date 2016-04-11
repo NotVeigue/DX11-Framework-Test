@@ -44,10 +44,11 @@ public:
     
     void Draw( ID3D11DeviceContext* pDeviceContext );
 
-    static std::unique_ptr<Mesh> CreateCube( ID3D11DeviceContext* deviceContext, float size = 1, bool rhcoords = true);
-    static std::unique_ptr<Mesh> CreateSphere( ID3D11DeviceContext* deviceContext, float diameter = 1, size_t tessellation = 16, bool rhcoords = true);
-    static std::unique_ptr<Mesh> CreateCone( ID3D11DeviceContext* deviceContext, float diameter = 1, float height = 1, size_t tessellation = 32, bool rhcoords = true);
-    static std::unique_ptr<Mesh> CreateTorus( ID3D11DeviceContext* deviceContext, float diameter = 1, float thickness = 0.333f, size_t tessellation = 32, bool rhcoords = true);
+    static std::unique_ptr<Mesh> CreateCube( ID3D11DeviceContext* deviceContext, float size = 1.0f, bool rhcoords = true);
+    static std::unique_ptr<Mesh> CreateSphere( ID3D11DeviceContext* deviceContext, float diameter = 1.0f, size_t tessellation = 16, bool rhcoords = true);
+    static std::unique_ptr<Mesh> CreateCone( ID3D11DeviceContext* deviceContext, float diameter = 1.0f, float height = 1.0f, size_t tessellation = 32, bool rhcoords = true);
+    static std::unique_ptr<Mesh> CreateTorus( ID3D11DeviceContext* deviceContext, float diameter = 1.0f, float thickness = 0.333f, size_t tessellation = 32, bool rhcoords = true);
+	static std::unique_ptr<Mesh> CreateQuad(ID3D11DeviceContext* deviceContext, float width = 1.0f, float height = 1.0f, bool rhcoords = true);
 
 protected:
 
