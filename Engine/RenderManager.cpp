@@ -349,9 +349,10 @@ bool RenderManager::InitStates()
 		CreateDepthStencilState(true, false, false, false, D3D11_COMPARISON_ALWAYS, &m_depthStencilStates[READ_ONLY]) &&
 		CreateDepthStencilState(false, true, false, false, D3D11_COMPARISON_ALWAYS, &m_depthStencilStates[WRITE_ONLY]) &&
 		CreateDepthStencilState(false, false, false, false, D3D11_COMPARISON_ALWAYS, &m_depthStencilStates[DEPTH_NONE]) &&
-		CreateDepthStencilState(true, true, true, true, D3D11_COMPARISON_ALWAYS, &m_depthStencilStates[STENCIL_WRITE]) &&
-		CreateDepthStencilState(false, false, true, false, D3D11_COMPARISON_FUNC::D3D11_COMPARISON_GREATER, &m_depthStencilStates[STENCIL_GT]) &&
-		CreateDepthStencilState(false, false, true, false, D3D11_COMPARISON_LESS, &m_depthStencilStates[STENCIL_LT]) &&
+		CreateDepthStencilState(true, false, true, true, D3D11_COMPARISON_ALWAYS, &m_depthStencilStates[STENCIL_WRITE]) &&
+		CreateDepthStencilState(true, true, true, false, D3D11_COMPARISON_GREATER, &m_depthStencilStates[STENCIL_GT]) &&
+		CreateDepthStencilState(true, true, true, false, D3D11_COMPARISON_LESS, &m_depthStencilStates[STENCIL_LT]) &&
+		CreateDepthStencilState(true, true, true, false, D3D11_COMPARISON_EQUAL, &m_depthStencilStates[STENCIL_EQ]) &&
 
 		CreateBlendState(D3D11_BLEND_ONE, D3D11_BLEND_ZERO, true, &m_blendStates[SOLID]) &&
 		CreateBlendState(D3D11_BLEND_SRC_ALPHA, D3D11_BLEND_INV_SRC_ALPHA, true, &m_blendStates[ALPHA_BLEND]) &&
@@ -398,13 +399,13 @@ bool RenderManager::CreateDepthStencilState(bool enable, bool writeEnable, bool 
 
 	depthStencilStateDesc.DepthEnable = enable;
 	depthStencilStateDesc.DepthWriteMask = writeEnable ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
-	depthStencilStateDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+	depthStencilStateDesc.DepthFunc = D3D11_COMPARISON_LESS;
 	depthStencilStateDesc.StencilEnable = stencilEnable;
 	depthStencilStateDesc.StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK;
-	depthStencilStateDesc.StencilWriteMask = stencilWriteEnable ? D3D11_DEFAULT_STENCIL_WRITE_MASK : 0;
+	depthStencilStateDesc.StencilWriteMask = stencilWriteEnable ? 0xFF : 0;
 	depthStencilStateDesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
 	depthStencilStateDesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
-	depthStencilStateDesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_REPLACE;
+	depthStencilStateDesc.FrontFace.StencilPassOp = stencilWriteEnable ? D3D11_STENCIL_OP_REPLACE : D3D11_STENCIL_OP_KEEP;
 	depthStencilStateDesc.FrontFace.StencilFunc = stencilFunc;
 	depthStencilStateDesc.BackFace = depthStencilStateDesc.FrontFace;
 
@@ -501,9 +502,9 @@ void RenderManager::SetRasterizerState(RASTERIZER_STATE state)
 	m_d3dDeviceContext->RSSetState(m_rasterizerStates[state].Get());
 }
 
-void RenderManager::SetDepthStencilState(DEPTH_STENCIL_STATE state)
+void RenderManager::SetDepthStencilState(DEPTH_STENCIL_STATE state, UINT depthStencilWriteValue)
 {
-	m_d3dDeviceContext->OMSetDepthStencilState(m_depthStencilStates[state].Get(), 0);
+	m_d3dDeviceContext->OMSetDepthStencilState(m_depthStencilStates[state].Get(), depthStencilWriteValue);
 }
 
 void RenderManager::SetBlendState(BLEND_STATE state)

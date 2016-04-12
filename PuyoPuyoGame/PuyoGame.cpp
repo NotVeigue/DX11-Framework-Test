@@ -96,68 +96,60 @@ void PuyoGame::LoadAssets()
 
 void PuyoGame::InitDepthStencil()
 {
-	m_gridStencil.Initialize(RenderManager::GetSingleton().GetDevice(), 800, 600, DXGI_FORMAT_D24_UNORM_S8_UINT, true, 1, 0);
-	RenderManager::GetSingleton().GetDeviceContext()->ClearDepthStencilView(m_gridStencil.dsView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-	ID3D11RenderTargetView* nullRenderTarget[1] = { nullptr };
-	RenderManager::GetSingleton().GetDeviceContext()->OMSetRenderTargets(1, nullRenderTarget, m_gridStencil.dsView);
-	RenderManager::GetSingleton().SetDepthStencilState(DEPTH_STENCIL_STATE::STENCIL_WRITE);
-	RenderManager::GetSingleton().SetRasterizerState(RASTERIZER_STATE::CULL_NONE);
+	ID3D11DeviceContext* context = RenderManager::GetSingleton().GetDeviceContext();
 
-	RHANDLE quadMesh = RenderManager::GetSingleton().CreateMeshResource(Mesh::CreateQuad(RenderManager::GetSingleton().GetDeviceContext()));
+	m_gridStencil.Initialize(RenderManager::GetSingleton().GetDevice(), 800, 600, DXGI_FORMAT_D24_UNORM_S8_UINT, true, 1, 0);
+	context->ClearDepthStencilView(m_gridStencil.dsView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+	ID3D11RenderTargetView* nullRenderTarget[1] = { nullptr };
+	context->OMSetRenderTargets(1, nullRenderTarget, m_gridStencil.dsView);
+	RenderManager::GetSingleton().SetDepthStencilState(DEPTH_STENCIL_STATE::STENCIL_WRITE, 1U);
+
+	RHANDLE quadMesh = RenderManager::GetSingleton().CreateMeshResource(Mesh::CreateQuad(context));
 	Material& puyoMaterial = RenderManager::GetSingleton().GetMaterial(m_puyoMaterial);
 	PerObjectConstantBufferData perObjectData;
 
-	//Render();
 	XMMATRIX leftPosition = XMMatrixTranslation(k_leftGridX + PUYO_SIZE * 2.5f, k_gridY + PUYO_SIZE * 5.5f, -10.0f);
 	XMMATRIX rightPosition = XMMatrixTranslation(k_rightGridX + PUYO_SIZE * 2.5f, k_gridY + PUYO_SIZE * 5.5f, -10.0f);
-	XMMATRIX scale = XMMatrixScaling(PUYO_SIZE * 6, PUYO_SIZE * 12, 1.0f);
+	XMMATRIX gridScale = XMMatrixScaling(PUYO_SIZE * 6.0f, PUYO_SIZE * 12.0f, 1.0f);
+	XMMATRIX queueScale = XMMatrixScaling(PUYO_SIZE * 4.0f, PUYO_SIZE * 2.0f, 1.0f);
 
-	perObjectData.WorldMatrix = scale * leftPosition;
+	perObjectData.WorldMatrix = gridScale * leftPosition;
 	perObjectData.WorldViewProjectionMatrix = perObjectData.WorldMatrix * m_orthoCamera.GetViewMatrix() * m_orthoCamera.GetProjectionMatrix();
-
 	RenderManager::GetSingleton().UpdateConstantBuffer(puyoMaterial.vsCBHandle, &perObjectData);
 	RenderManager::GetSingleton().DrawWithMaterial(quadMesh, m_puyoMaterial);
 
-	perObjectData.WorldMatrix = scale * rightPosition;
+	perObjectData.WorldMatrix = gridScale * rightPosition;
 	perObjectData.WorldViewProjectionMatrix = perObjectData.WorldMatrix * m_orthoCamera.GetViewMatrix() * m_orthoCamera.GetProjectionMatrix();
-
 	RenderManager::GetSingleton().UpdateConstantBuffer(puyoMaterial.vsCBHandle, &perObjectData);
 	RenderManager::GetSingleton().DrawWithMaterial(quadMesh, m_puyoMaterial);
 
-	RenderManager::GetSingleton().ResetRenderTarget();
-	/*ID3D11RenderTargetView* rt;
-	ID3D11DepthStencilView* ds;
-	RenderManager::GetSingleton().GetDeviceContext()->OMGetRenderTargets(1, &rt, &ds);
-	RenderManager::GetSingleton().GetDeviceContext()->OMSetRenderTargets(1, &rt, m_gridStencil.dsView);*/
-	//RenderManager::GetSingleton().GetDeviceContext()->OMGetRenderTargets(1, RenderManager::GetSingleton().GetBackBufferRT(), RenderManager::GetSingleton().GetDepthStencil());
-	/*m_gridStencil.Initialize(RenderManager::GetSingleton().GetDevice(), 800, 600, DXGI_FORMAT_D16_UNORM, true, 1, 0);
-	RenderManager::GetSingleton().GetDeviceContext()->ClearDepthStencilView(testBuffer.dsView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-	ID3D11RenderTargetView* renderTargets[1] = { testTarget.rtView };
-	RenderManager::GetSingleton().GetDeviceContext()->OMSetRenderTargets(1, renderTargets, testBuffer.dsView);
+	// TODO: Draw Stencil Rects for the queues too
+	/*perObjectData.WorldMatrix = queueScale * XMMatrixTranslation(0.0f, 0.0f, -10.0f);
+	perObjectData.WorldViewProjectionMatrix = perObjectData.WorldMatrix * m_orthoCamera.GetViewMatrix() * m_orthoCamera.GetProjectionMatrix();
+	RenderManager::GetSingleton().UpdateConstantBuffer(puyoMaterial.vsCBHandle, &perObjectData);
+	RenderManager::GetSingleton().DrawWithMaterial(quadMesh, m_puyoMaterial);
 
-	Material& puyoMaterial = RenderManager::GetSingleton().GetMaterial(m_puyoMaterial);
-	PerObjectConstantBufferData perObjectData;
-	SingleColorConstantBufferData colorData;
-
-	XMMATRIX worldMatrix = quadTransform.GetWorldMatrix();
-	XMMATRIX viewMatrix = m_orthoCamera.GetViewMatrix();
-	XMMATRIX projMatrix = m_orthoCamera.GetProjectionMatrix();
-	perObjectData.WorldMatrix = worldMatrix;
-	perObjectData.InverseTransposeWorldMatrix = XMMatrixTranspose(XMMatrixInverse(nullptr, worldMatrix));
-	perObjectData.WorldViewProjectionMatrix = worldMatrix * viewMatrix * projMatrix;
+	perObjectData.WorldMatrix = queueScale * XMMatrixTranslation(0.0f, 0.0f, -10.0f);;
+	perObjectData.WorldViewProjectionMatrix = perObjectData.WorldMatrix * m_orthoCamera.GetViewMatrix() * m_orthoCamera.GetProjectionMatrix();
 	RenderManager::GetSingleton().UpdateConstantBuffer(puyoMaterial.vsCBHandle, &perObjectData);
 	RenderManager::GetSingleton().DrawWithMaterial(quadMesh, m_puyoMaterial);*/
+
+	RenderManager::GetSingleton().GetDeviceContext()->OMSetRenderTargets(1, RenderManager::GetSingleton().GetBackBufferRT(), m_gridStencil.dsView);
 }
 
 
 bool PuyoGame::Update(double dt)
 {
+	ID3D11DeviceContext* context = RenderManager::GetSingleton().GetDeviceContext();
+	context->ClearDepthStencilView(m_gridStencil.dsView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	context->ClearRenderTargetView(*RenderManager::GetSingleton().GetBackBufferRT(), DirectX::Colors::Black);
+
 	//if(!m_p1Instance.Update(dt)) return false;
 	if(!m_p2Instance.Update(dt)) return false;
 	
-	RenderManager::GetSingleton().SetDepthStencilState(DEPTH_STENCIL_STATE::READ_WRITE);
-	RenderManager::GetSingleton().Clear(DirectX::Colors::AliceBlue, 1.0, 0);
-	RenderManager::GetSingleton().Blit(m_gridStencil.srView, nullptr, SAMPLER_STATE::POINT_WRAP);
+	RenderManager::GetSingleton().SetDepthStencilState(DEPTH_STENCIL_STATE::STENCIL_EQ, 1U);
+	//RenderManager::GetSingleton().Clear(DirectX::Colors::AliceBlue, 1.0, 0);
+	//RenderManager::GetSingleton().Blit(m_gridStencil.srView, nullptr, SAMPLER_STATE::POINT_WRAP);
 	Render();
 	RenderManager::GetSingleton().Present();
 

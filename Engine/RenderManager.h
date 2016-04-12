@@ -26,6 +26,7 @@ enum DEPTH_STENCIL_STATE
 	STENCIL_WRITE,
 	STENCIL_GT,
 	STENCIL_LT,
+	STENCIL_EQ,
 	DEPTH_STENCIL_STATE_COUNT
 };
 
@@ -173,7 +174,7 @@ public:
 	Material& GetMaterial(RHANDLE materialHandle);
 
 	void SetRasterizerState(RASTERIZER_STATE state);
-	void SetDepthStencilState(DEPTH_STENCIL_STATE state);
+	void SetDepthStencilState(DEPTH_STENCIL_STATE state, UINT depthStencilWriteValue = 0U);
 	void SetBlendState(BLEND_STATE state);
 
 	// Blits the given source texture to the specified destination texture. If the destination is null, the contents of src will be drawn to 
