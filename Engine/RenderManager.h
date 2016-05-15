@@ -27,6 +27,9 @@ enum DEPTH_STENCIL_STATE
 	STENCIL_GT,
 	STENCIL_LT,
 	STENCIL_EQ,
+	READONLY_STENCIL_GT,
+	READONLY_STENCIL_LT,
+	READONLY_STENCIL_EQ,
 	DEPTH_STENCIL_STATE_COUNT
 };
 
@@ -126,10 +129,11 @@ private:
 	// Present parameters used by the IDXGISwapChain1::Present1 method
 	DXGI_PRESENT_PARAMETERS m_PresentParameters;
 
-	// A material and geometry from blitting to the screen.
-	// I imagine compute shaders may be able to be used to accomplish this more efficiently? I guess I will 
+	// A material and geometry for blitting to the screen.
+	// I imagine compute shaders may be able to be used to accomplish this more efficiently? I guess I will find out later on.
 	RHANDLE m_blitMaterial;
 	RHANDLE m_blitQuad;
+	RHANDLE m_blitVS; // This is retained for use with the RenderFullscreen function.
 
 	bool Initialize();
 	bool InitStates();
@@ -176,10 +180,15 @@ public:
 	void SetRasterizerState(RASTERIZER_STATE state);
 	void SetDepthStencilState(DEPTH_STENCIL_STATE state, UINT depthStencilWriteValue = 0U);
 	void SetBlendState(BLEND_STATE state);
+	void SetSamplerState(SAMPLER_STATE state, UINT startSlot = 0U, UINT numSamplers = 1U);
 
 	// Blits the given source texture to the specified destination texture. If the destination is null, the contents of src will be drawn to 
 	// the back buffer.
-	void Blit(ID3D11ShaderResourceView* src, ID3D11RenderTargetView* dst, SAMPLER_STATE samplerState = SAMPLER_STATE::POINT_CLAMP);
+	void Blit(ID3D11ShaderResourceView* src, ID3D11RenderTargetView* dst, SAMPLER_STATE samplerState = SAMPLER_STATE::POINT_CLAMP, bool useDepth = false);
+
+	// TODO: Implement this function. It will accept a pixel shader and use it to render a full-screen quad. Use the blit vertex shader as the vertex shader.
+	// if no render target view is specified, will render to the back buffer. Must update constant buffer manually before calling for now.
+	void RenderFullscreen(RHANDLE pShader, ID3D11RenderTargetView* dst = nullptr);
 
 	// Set the current viewport used by the rasterizer stage. Only really needs to be called when
 	// resizing the window or doing something special like rendering split-screen. I will expand

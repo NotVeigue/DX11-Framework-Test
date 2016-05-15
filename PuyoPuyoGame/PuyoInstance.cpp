@@ -8,8 +8,8 @@
 using namespace DirectX;
 using namespace XMExtensions;
 
-PuyoInstance::PuyoInstance(PuyoController* controller, bool rightSide)
-	: m_controller(controller)
+PuyoInstance::PuyoInstance(bool rightSide)
+	: m_controller(nullptr)
 	, m_gameState(PUYO_STATE::RESOLVING)
 {
 	// Add initialization code here!
@@ -18,13 +18,27 @@ PuyoInstance::PuyoInstance(PuyoController* controller, bool rightSide)
 	if(rightSide)
 		m_puyoQueue.transform.Rotate(XMQuaternionRotationAxis(XMVectorSet(0.0, 1.0, 0.0, 0.0), XM_PI));
 	m_puyoQueue.transform.SetPosition(rightSide ? XMVectorSet(-QUEUE_PADDING, 13.0f, 0.0f, 0.0f) :
-												  XMVectorSet(QUEUE_PADDING + 6.0f, 13.0f, 0.0f, 0.0f));
+												  XMVectorSet(QUEUE_PADDING + 5.0f, 13.0f, 0.0f, 0.0f));
 }
-
 
 PuyoInstance::~PuyoInstance()
 {
 
+}
+
+void PuyoInstance::Initialize(PuyoController* controller)
+{
+	m_controller = controller;
+	m_gameState = PUYO_STATE::RESOLVING;
+	m_puyoQueue.Initialize();
+}
+
+void PuyoInstance::Cleanup()
+{
+	m_puyoGrid.Cleanup();
+	m_fallingPuyos.clear();
+	m_disappearingPuyos.clear();
+	
 }
 
 // ***************************************************************
@@ -323,4 +337,9 @@ bool PuyoInstance::Update(double dt)
 
 	// Do a test here to start!
 	return result;
+}
+
+const PuyoGrid& PuyoInstance::GetGrid() const
+{
+	return m_puyoGrid;
 }

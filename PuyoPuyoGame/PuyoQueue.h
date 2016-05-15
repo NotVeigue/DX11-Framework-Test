@@ -52,6 +52,8 @@ public:
 	PuyoQueue();
 	~PuyoQueue();
 
+	void Initialize();
+
 	Transform transform;
 
 	// TODO: Implement this. It should perform any animations that are necessary.

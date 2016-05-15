@@ -114,6 +114,16 @@ void PuyoUnit::Rotate(bool counterClockwise)
 
 PuyoQueue::PuyoQueue()
 {
+	
+}
+
+
+PuyoQueue::~PuyoQueue()
+{
+}
+
+void PuyoQueue::Initialize()
+{
 	for (int i = 0; i < 4; i++)
 	{
 		InitializeUnit(m_puyoUnits[i]);
@@ -124,11 +134,6 @@ PuyoQueue::PuyoQueue()
 	}
 
 	// Maybe call a function here to position the puyos in the proper order?
-}
-
-
-PuyoQueue::~PuyoQueue()
-{
 }
 
 void PuyoQueue::InitializeUnit(PuyoUnit& unit)

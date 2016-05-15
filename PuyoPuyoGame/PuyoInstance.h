@@ -46,13 +46,19 @@ private:
 	double step = 0.5;*/
 
 public:
-	PuyoInstance(PuyoController* controller, bool rightSide);
+	PuyoInstance(bool rightSide);
 	~PuyoInstance();
 
 	Transform transform;
+	
+	// Used for starting and ending play instances
+	void Initialize(PuyoController* controller);
+	void Cleanup();
 
 	// Updates the puyo state. Returns true if successful, returns false if game over.
 	bool Update(double dt);
+
+	const PuyoGrid& GetGrid() const;
 
 	// A pointer to a function in the outside game that allows this instance to send garbage puyos to a rival instance.
 	void(*SendGarbage)(int instanceID, int garbageCount);

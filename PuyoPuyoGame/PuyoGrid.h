@@ -15,6 +15,8 @@ public:
 	PuyoGrid();
 	~PuyoGrid();
 
+	void Cleanup();
+
 	// ToDo: Add public api for adding and clearing puyo's
 	//		 as well as querying the grid for combos and other
 	//		 information.

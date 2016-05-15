@@ -332,7 +332,7 @@ bool RenderManager::Initialize()
 	//RHANDLE blitCB = CreateCBResource(sizeof(BlitConstantBufferVertex));
 	m_blitMaterial = CreateMaterial(blitVS, blitPS);
 	m_blitQuad	   = CreateMeshResource(Mesh::CreateQuad(m_d3dDeviceContext.Get(), 2.0f, 2.0f));
-
+	m_blitVS	   = blitVS;
 
 	return true;
 }
@@ -353,6 +353,9 @@ bool RenderManager::InitStates()
 		CreateDepthStencilState(true, true, true, false, D3D11_COMPARISON_GREATER, &m_depthStencilStates[STENCIL_GT]) &&
 		CreateDepthStencilState(true, true, true, false, D3D11_COMPARISON_LESS, &m_depthStencilStates[STENCIL_LT]) &&
 		CreateDepthStencilState(true, true, true, false, D3D11_COMPARISON_EQUAL, &m_depthStencilStates[STENCIL_EQ]) &&
+		CreateDepthStencilState(false, false, true, false, D3D11_COMPARISON_GREATER, &m_depthStencilStates[READONLY_STENCIL_GT]) &&
+		CreateDepthStencilState(false, false, true, false, D3D11_COMPARISON_LESS, &m_depthStencilStates[READONLY_STENCIL_LT]) &&
+		CreateDepthStencilState(false, false, true, false, D3D11_COMPARISON_EQUAL, &m_depthStencilStates[READONLY_STENCIL_EQ]) &&
 
 		CreateBlendState(D3D11_BLEND_ONE, D3D11_BLEND_ZERO, true, &m_blendStates[SOLID]) &&
 		CreateBlendState(D3D11_BLEND_SRC_ALPHA, D3D11_BLEND_INV_SRC_ALPHA, true, &m_blendStates[ALPHA_BLEND]) &&
@@ -512,7 +515,29 @@ void RenderManager::SetBlendState(BLEND_STATE state)
 	m_d3dDeviceContext->OMSetBlendState(m_blendStates[state].Get(), nullptr, 0xFFFFFFFF);
 }
 
-void RenderManager::Blit(ID3D11ShaderResourceView* src, ID3D11RenderTargetView* dst, SAMPLER_STATE samplerState)
+void RenderManager::SetSamplerState(SAMPLER_STATE state, UINT startSlot, UINT numSamplers)
+{
+	m_d3dDeviceContext->PSSetSamplers(startSlot, numSamplers, m_samplerStates[state].GetAddressOf());
+}
+
+void RenderManager::Blit(ID3D11ShaderResourceView* src, ID3D11RenderTargetView* dst, SAMPLER_STATE samplerState, bool useDepth)
+{
+	// Save the previous render targets
+	ID3D11RenderTargetView* rt;
+	ID3D11DepthStencilView* ds;
+	m_d3dDeviceContext->OMGetRenderTargets(1, &rt, &ds);
+
+	m_d3dDeviceContext->OMSetRenderTargets(1, dst == nullptr ? m_d3dRenderTargetView.GetAddressOf() : &dst, useDepth ? ds : nullptr);
+	m_d3dDeviceContext->PSSetShaderResources(0, 1, &src);
+	m_d3dDeviceContext->PSSetSamplers(0, 1, m_samplerStates[samplerState].GetAddressOf());
+
+	DrawWithMaterial(m_blitQuad, m_blitMaterial);
+
+	// Restor the original render targets
+	m_d3dDeviceContext->OMSetRenderTargets(1, &rt, ds);
+}
+
+void RenderManager::RenderFullscreen(RHANDLE pShader, ID3D11RenderTargetView* dst)
 {
 	// Save the previous render targets
 	ID3D11RenderTargetView* rt;
@@ -520,12 +545,11 @@ void RenderManager::Blit(ID3D11ShaderResourceView* src, ID3D11RenderTargetView* 
 	m_d3dDeviceContext->OMGetRenderTargets(1, &rt, &ds);
 
 	m_d3dDeviceContext->OMSetRenderTargets(1, dst == nullptr ? m_d3dRenderTargetView.GetAddressOf() : &dst, nullptr);
-	m_d3dDeviceContext->PSSetShaderResources(0, 1, &src);
-	m_d3dDeviceContext->PSSetSamplers(0, 1, m_samplerStates[samplerState].GetAddressOf());
+	SetVertexShader(m_blitVS);
+	SetPixelShader(pShader);
 
-	DrawWithMaterial(m_blitQuad, m_blitMaterial);
+	m_meshMap[m_blitQuad]->Draw(m_d3dDeviceContext.Get());
 
-	// Restor the original render targets
 	m_d3dDeviceContext->OMSetRenderTargets(1, &rt, ds);
 }
 

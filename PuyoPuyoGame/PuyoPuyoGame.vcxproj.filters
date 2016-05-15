@@ -85,5 +85,20 @@
     <FxCompile Include="Data\UnlitPixelShader.hlsl">
       <Filter>Data</Filter>
     </FxCompile>
+    <FxCompile Include="Data\SubsurfacePuyoPS.hlsl">
+      <Filter>Data</Filter>
+    </FxCompile>
+    <FxCompile Include="Data\DepthOnlyPS.hlsl">
+      <Filter>Data</Filter>
+    </FxCompile>
+    <FxCompile Include="Data\DepthOnlyVS.hlsl">
+      <Filter>Data</Filter>
+    </FxCompile>
+    <FxCompile Include="Data\GridBackgroundPS.hlsl">
+      <Filter>Data</Filter>
+    </FxCompile>
+    <FxCompile Include="Data\GridBackgroundVoronoiPS.hlsl">
+      <Filter>Data</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

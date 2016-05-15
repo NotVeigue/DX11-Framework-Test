@@ -6,17 +6,17 @@
 #define USED_PUYO_COLORS 4
 
 // VALUES THAT COULD BE MOVED TO A CONFIG FILE
-#define PUYO_SIZE 20.0f
+#define PUYO_SIZE 25.0f
 #define FIELD_WIDTH PUYO_SIZE * 6.0f
 #define QUEUE_WIDTH 4.0f
 #define FIELD_PADDING 30.0f
 #define QUEUE_PADDING 1.5f
-#define PUYO_SPAWN_X 4.0f
+#define PUYO_SPAWN_X 3.0f
 #define PUYO_SPWAN_Y 11.0f
 #define FALL_SPEED -1.5f
 #define FALL_SPEED_FAST -16.0f
 #define MIN_COMBO_SIZE 4
 
-const float k_leftGridX = -FIELD_WIDTH - (QUEUE_WIDTH + QUEUE_PADDING) * PUYO_SIZE - FIELD_PADDING;
+const float k_leftGridX = -FIELD_WIDTH - (QUEUE_WIDTH + QUEUE_PADDING) * PUYO_SIZE;
 const float k_rightGridX = (QUEUE_WIDTH + QUEUE_PADDING) * PUYO_SIZE + FIELD_PADDING;
 const float k_gridY = -100.0f;

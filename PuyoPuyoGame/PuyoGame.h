@@ -15,9 +15,13 @@ private:
 
 	// Resources for Drawing The Game
 	static DirectX::XMFLOAT4 ms_PuyoColors[PUYO_COLOR_COUNT];
-	RHANDLE m_puyoMesh;
-	RHANDLE m_puyoMaterial;
 	Camera m_orthoCamera;
+	RHANDLE m_puyoMesh;
+
+	// Materials
+	RHANDLE m_puyoMaterial;
+	RHANDLE m_depthOnlyMaterial;
+	RHANDLE m_subsurfaceMaterial;
 
 	// Puyo Management
 	ObjectPool<Puyo> m_puyoPool{ 256 };
@@ -34,10 +38,20 @@ private:
 
 	void LoadAssets();
 	void Render();
+	void RenderDepth();
 
-	// We're gonna use a depth stencil for this just because we can!!
+	// We're gonna use a stencil for this just because we can!!
 	DepthStencilBuffer m_gridStencil;
-	void InitDepthStencil();
+	void InitGridStencil();
+
+	// This is used for the effect used to draw the puyos
+	DepthStencilBuffer m_backfaceDepth;
+
+	// Procedural voronoi texture used in the background of the puyo grids
+	RenderTarget2D m_gridTexture;
+
+	// Procedural texture around the UI elements
+	RenderTarget2D m_overlayTexture;
 
 public:
 	PuyoGame();
@@ -50,6 +64,8 @@ public:
 
 	// Removes a puyo from the active list, then returns its memory to the object pool
 	void FreePuyo(Puyo*);
+
+	const PuyoInstance* GetInstance(UINT8 playerNumber) const;
 
 	static PuyoGame& GetSingleton();
 	static PuyoGame* GetSingletonPtr();
