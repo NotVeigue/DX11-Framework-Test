@@ -6,6 +6,8 @@
 class PuyoUnit
 {
 private:
+
+	// Orientation represents the current offset of the hanging puyo (the one in the second index that rotates around the pivot)
 	DirectX::XMFLOAT2 m_orientation;
 
 	// This may seem useless, but it makes querying positions much faster than using the puyos's transforms

@@ -60,6 +60,10 @@ public:
 
 	const PuyoGrid& GetGrid() const;
 
+	// Obtains the position (x, y), the orientation (0 = up, 1 = right, 2 = down, 3 = left), and the colors of each puyo in the unit,
+	// storing them in unitStaging.
+	void GetCurrentUnit(int unitStaging[5]) const;
+
 	// A pointer to a function in the outside game that allows this instance to send garbage puyos to a rival instance.
 	void(*SendGarbage)(int instanceID, int garbageCount);
 };

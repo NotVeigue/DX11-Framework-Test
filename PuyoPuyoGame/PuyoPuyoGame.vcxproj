@@ -148,25 +148,29 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AIController.cpp" />
+    <ClCompile Include="LuaAIBridge.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Puyo.cpp" />
     <ClCompile Include="PuyoGame.cpp" />
     <ClCompile Include="PuyoGrid.cpp" />
     <ClCompile Include="PuyoInstance.cpp" />
-    <ClCompile Include="PuyoKeyboardController.cpp" />
+    <ClCompile Include="PlayerController.cpp" />
     <ClCompile Include="PuyoPuyoGamePCH.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="PuyoQueue.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AIController.h" />
+    <ClInclude Include="LuaAIBridge.h" />
     <ClInclude Include="ObjectPool.h" />
     <ClInclude Include="Puyo.h" />
     <ClInclude Include="PuyoController.h" />
     <ClInclude Include="PuyoGame.h" />
     <ClInclude Include="PuyoGrid.h" />
     <ClInclude Include="PuyoInstance.h" />
-    <ClInclude Include="PuyoKeyboardController.h" />
+    <ClInclude Include="PlayerController.h" />
     <ClInclude Include="PuyoPuyoGamePCH.h" />
     <ClInclude Include="PuyoQueue.h" />
     <ClInclude Include="PuyoValues.h" />

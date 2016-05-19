@@ -343,3 +343,22 @@ const PuyoGrid& PuyoInstance::GetGrid() const
 {
 	return m_puyoGrid;
 }
+
+void PuyoInstance::GetCurrentUnit(int unitStaging[5]) const
+{
+	// Position (x, y)
+	unitStaging[0] = (int)m_currentUnit->GetPosition(0).x;
+	unitStaging[1] = (int)m_currentUnit->GetPosition(0).y;
+	
+	// Orientation (0 = up, 1 = right, 2 = down, 3 = left)
+	const XMFLOAT2& orientation = m_currentUnit->GetOrientation();
+	unitStaging[2] = 
+		orientation.y > 0.0f ? 0 :
+		orientation.x > 0.0f ? 1 :
+		orientation.y < 0.0f ? 2 :
+		3;
+
+	// Colors
+	unitStaging[3] = m_currentUnit->puyos[0]->puyoColor;
+	unitStaging[4] = m_currentUnit->puyos[1]->puyoColor;
+}
